@@ -1,0 +1,25 @@
+[package]
+name = "bazarr-bulk"
+authors = ["Mateo Radman <radmanmateo@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+description = "A bulk operation CLI tool for Bazarr"
+documentation = "https://github.com/mateoradman/swift_file"
+homepage = "https://github.com/mateoradman/bazarr-bulk"
+repository = "https://github.com/mateoradman/bazarr-bulk"
+license = "MIT"
+categories = ["command-line-utilities"]
+
+[[bin]]
+bench = false
+name = "bb"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.4.11", features = ["derive"] }
+config = { version = "0.13.4", features = ["json"] }
+human-panic = "1.2.2"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0.193", features = ["derive"] }
+termcolor = "1.4.0"
+tokio = { version = "1", features = ["full"] }
