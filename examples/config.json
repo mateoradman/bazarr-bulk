@@ -1,6 +1,6 @@
 {
-  "method": "http",
   "host": "0.0.0.0",
+  "protocol": "http",
   "port": "6767",
   "apiKey": "<YOUR_API_KEY>"
 }
