@@ -1,6 +1,13 @@
-use reqwest::Client;
+use std::fmt::Debug;
 
-use crate::data_types::{app_config::AppConfig, request::MediaType};
+use reqwest::Client;
+use serde::de::DeserializeOwned;
+
+use crate::data_types::{
+    app_config::AppConfig,
+    request::MediaType,
+    response::{Movie, PaginatedResponse},
+};
 
 pub struct ActionConfig {
     pub config: AppConfig,
@@ -8,21 +15,39 @@ pub struct ActionConfig {
     pub start: Option<u8>,
 }
 
-pub async fn list_records(
+async fn get_all<T>(
     action_config: &ActionConfig,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<PaginatedResponse<T>, Box<dyn std::error::Error>>
+where
+    T: DeserializeOwned,
+    T: Debug,
+{
     let endpoint = match action_config.media_type {
         MediaType::TVShow => "series",
         MediaType::Movie => "movies",
     };
     let client = Client::new();
     let url = get_endpoint_url(action_config, endpoint).await;
-    let body = client
+    let body: PaginatedResponse<T> = client
         .get(&url)
         .header("X-API-KEY", &action_config.config.api_key)
         .send()
+        .await?
+        .json()
         .await?;
-    Ok(body.text().await?)
+    Ok(body)
+}
+
+pub async fn list_records(
+    action_config: &ActionConfig,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = get_all::<Movie>(action_config).await?;
+    let record_titles = response
+        .data
+        .iter()
+        .map(|record| record.common_attributes.title.clone())
+        .collect::<Vec<String>>();
+    Ok(format!("{:?}", record_titles))
 }
 
 pub async fn sync_subtitles(
