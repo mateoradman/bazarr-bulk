@@ -19,7 +19,7 @@ pub async fn list_records(
     let url = get_endpoint_url(action_config, endpoint).await;
     let body = client
         .get(&url)
-        .header("X-API-KEY", &action_config.config.bazarr_api_key)
+        .header("X-API-KEY", &action_config.config.api_key)
         .send()
         .await?;
     Ok(body.text().await?)
@@ -41,7 +41,10 @@ pub async fn common_fixes(
 
 async fn get_endpoint_url(action_config: &ActionConfig, endpoint: &str) -> String {
     format!(
-        "http://{}:{}/api/{}",
-        action_config.config.bazarr_host, action_config.config.bazarr_port, endpoint
+        "{}://{}:{}/api/{}",
+        action_config.config.protocol,
+        action_config.config.host,
+        action_config.config.port,
+        endpoint
     )
 }
