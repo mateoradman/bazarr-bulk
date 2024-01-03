@@ -129,6 +129,7 @@ dependencies = [
  "human-panic",
  "reqwest",
  "serde",
+ "serde_json",
  "termcolor",
  "tokio",
 ]

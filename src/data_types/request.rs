@@ -2,6 +2,8 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
+use crate::cli::ActionCommands;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum MediaType {
     Movie,
@@ -21,9 +23,11 @@ impl FromStr for MediaType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SyncRequest {
-    id: i32,
-    media_type: MediaType,
+pub struct ActionPayload {
+    ids: u32,
+    #[serde(rename = "type")]
+    media_type: String,
     language: String,
     path: String,
+    action: ActionCommands,
 }
