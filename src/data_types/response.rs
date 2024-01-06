@@ -3,12 +3,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
-    pub total: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaginatedEpisodeResponse {
-    pub data: Vec<Episode>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,8 +37,8 @@ pub struct Episode {
     pub monitored: bool,
     pub path: String,
     pub season: u32,
+    #[serde(rename = "sonarrEpisodeId")]
     pub sonarr_episode_id: u32,
-    pub sonarr_series_id: u32,
     pub subtitles: Vec<Subtitle>,
     pub title: String,
 }

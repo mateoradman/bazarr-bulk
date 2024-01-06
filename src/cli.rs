@@ -4,11 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, str::FromStr};
 
 use crate::{
-    actions::{self, get_episode_ids, get_movie_ids, perform_action, ActionDetail},
-    data_types::{
-        app_config::AppConfig,
-        request::{ActionPayload, MediaType},
-    },
+    actions::{movie_action, series_action},
+    data_types::app_config::AppConfig,
 };
 
 #[derive(Parser)]
@@ -25,7 +22,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub async fn run(self, config: AppConfig) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         self.command.run(config).await
     }
 }
@@ -47,10 +44,18 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn run(self, config: AppConfig) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "X-API-KEY",
+            header::HeaderValue::from_str(&config.api_key).unwrap(),
+        );
+        let client = Client::builder().default_headers(headers).build()?;
+        let base_url = format!("{}://{}:{}/api", config.protocol, config.host, config.port);
+        let url = Url::from_str(&base_url)?;
         match self {
-            Commands::Movies { subcommand } => subcommand.run(MediaType::Movie, config).await,
-            Commands::TVShows { subcommand } => subcommand.run(MediaType::TVShow, config).await,
+            Commands::Movies { subcommand } => movie_action(&url, &client, subcommand).await,
+            Commands::TVShows { subcommand } => series_action(&url, &client, subcommand).await,
         }
     }
 }
@@ -71,29 +76,6 @@ pub enum ActionCommands {
     FixUppercase,
     /// reverse RTL directioned subtitles
     ReverseRTL,
-}
-
-impl ActionCommands {
-    pub async fn run(
-        self,
-        media_type: MediaType,
-        config: AppConfig,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let mut headers = header::HeaderMap::new();
-        headers.insert(
-            "X-API-KEY",
-            header::HeaderValue::from_str(&config.api_key).unwrap(),
-        );
-        let client = Client::builder().default_headers(headers).build()?;
-        let base_url = format!("{}://{}:{}/api", config.protocol, config.host, config.port);
-        let url = Url::from_str(&base_url)?;
-        let ids: Vec<u32> = match media_type {
-            MediaType::Movie => get_movie_ids(&url, &client).await?,
-            MediaType::TVShow => get_episode_ids(&url, &client).await?,
-        };
-        println!("{:?}", ids);
-        Ok(String::from("aaa"))
-    }
 }
 
 impl ToString for ActionCommands {

@@ -24,10 +24,10 @@ impl FromStr for MediaType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActionPayload {
-    ids: u32,
+    pub id: u32,
     #[serde(rename = "type")]
-    media_type: String,
-    language: String,
-    path: String,
-    action: ActionCommands,
+    pub media_type: String,
+    pub language: String,
+    pub path: String,
+    pub action: ActionCommands,
 }
