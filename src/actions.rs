@@ -23,7 +23,7 @@ impl Action {
     pub fn new(client: Client, base_url: Url) -> Self {
         let pb = ProgressBar::new(0);
         pb.set_style(
-            ProgressStyle::with_template("[{bar:60.cyan/blue} {pos:>7}/{len:7}\n{msg}")
+            ProgressStyle::with_template("[{bar:60.cyan/blue}] {pos:>7}/{len:7}\n{msg}")
                 .unwrap()
                 .progress_chars("##-"),
         );
@@ -54,43 +54,81 @@ impl Action {
         Ok(res_body)
     }
 
+    async fn process_episode_subtitle(&self, series: &TVShow, episode: Episode) {
+        for subtitle in episode.subtitles {
+            if subtitle.path.is_none() {
+                return;
+            }
+            let payload = ActionPayload {
+                id: episode.sonarr_episode_id,
+                media_type: String::from("episode"),
+                language: subtitle.audio_language_item.code2,
+                path: subtitle.path.unwrap(),
+                action: self.action.clone(),
+            };
+            match self.perform(payload).await {
+                Ok(_) => {
+                    self.pb.set_message(format!("Successfully performed action `{}` on {} subtitle of episode `{}` of tv show `{}`", 
+                        self.action.to_string(), 
+                        subtitle.audio_language_item.name,
+                        episode.title, 
+                        series.common_attributes.title, 
+                    ));
+                }
+                Err(err) => {
+                    self.pb.set_message(format!("Error performing action `{}` on {} subtitle of episode `{}` of tv show `{}` due to error {}", 
+                        self.action.to_string(), 
+                        subtitle.audio_language_item.name,
+                        episode.title, 
+                        series.common_attributes.title, 
+                        err,
+                    ));
+                }
+            }
+        }
+    }
+
+    async fn process_movie_subtitle(&self, movie: Movie) {
+        for subtitle in movie.subtitles {
+            if subtitle.path.is_none() {
+                continue;
+            }
+            let payload = ActionPayload {
+                id: movie.radarr_id,
+                media_type: String::from("movie"),
+                language: subtitle.audio_language_item.code2,
+                path: subtitle.path.unwrap(),
+                action: self.action.clone(),
+            };
+            match self.perform(payload).await {
+                Ok(_) => {
+                    self.pb.set_message(format!(
+                        "Successfully performed action `{}` on {} subtitle of movie `{}`",
+                        self.action.to_string(),
+                        subtitle.audio_language_item.name,
+                        movie.common_attributes.title,
+                    ));
+                }
+                Err(err) => {
+                    self.pb.set_message(
+                        format!("Error performing action `{}` on {} subtitle of movie `{}` due to error {}", 
+                        self.action.to_string(), 
+                        subtitle.audio_language_item.name,
+                        movie.common_attributes.title, 
+                        err,
+                    ));
+                }
+            }
+        }
+    }
+
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
         let response = self.get_all::<Movie>(url).await?;
         self.pb.set_length(response.data.len() as u64);
         for movie in response.data {
-            for subtitle in movie.subtitles {
-                if subtitle.path.is_none() {
-                    continue;
-                }
-                let payload = ActionPayload {
-                    id: movie.radarr_id,
-                    media_type: String::from("movie"),
-                    language: subtitle.audio_language_item.code2,
-                    path: subtitle.path.unwrap(),
-                    action: self.action.clone(),
-                };
-                match self.perform(payload).await {
-                    Ok(_) => {
-                        self.pb.set_message(format!(
-                            "Successfully performed action `{}` on {} subtitle of movie `{}`",
-                            self.action.to_string(),
-                            subtitle.audio_language_item.name,
-                            movie.common_attributes.title,
-                        ));
-                    }
-                    Err(err) => {
-                        self.pb.set_message(
-                            format!("Error performing action `{}` on {} subtitle of movie `{}` due to error {}", 
-                            self.action.to_string(), 
-                            subtitle.audio_language_item.name,
-                            movie.common_attributes.title, 
-                            err,
-                        ));
-                    }
-                }
-            }
+            self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
         }
         self.pb.finish_with_message(format!(
@@ -113,37 +151,7 @@ impl Action {
             new_url.set_query(Some(&query_param));
             let response = self.get_all::<Episode>(new_url).await?;
             for episode in response.data {
-                for subtitle in episode.subtitles {
-                    if subtitle.path.is_none() {
-                        continue;
-                    }
-                    let payload = ActionPayload {
-                        id: episode.sonarr_episode_id,
-                        media_type: String::from("episode"),
-                        language: subtitle.audio_language_item.code2,
-                        path: subtitle.path.unwrap(),
-                        action: self.action.clone(),
-                    };
-                    match self.perform(payload).await {
-                        Ok(_) => {
-                            self.pb.set_message(format!("Successfully performed action `{}` on {} subtitle of episode `{}` of tv show `{}`", 
-                                self.action.to_string(), 
-                                subtitle.audio_language_item.name,
-                                episode.title, 
-                                series.common_attributes.title, 
-                            ));
-                        }
-                        Err(err) => {
-                            self.pb.set_message(format!("Error performing action `{}` on {} subtitle of episode `{}` of tv show `{}` due to error {}", 
-                                self.action.to_string(), 
-                                subtitle.audio_language_item.name,
-                                episode.title, 
-                                series.common_attributes.title, 
-                                err,
-                            ));
-                        }
-                    }
-                }
+                self.process_episode_subtitle(&series, episode).await;
             }
             self.pb.inc(1);
         }
