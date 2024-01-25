@@ -72,7 +72,7 @@ impl Action {
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
                         episode.title, 
-                        series.common_attributes.title, 
+                        series.title, 
                     ));
                 }
                 Err(err) => {
@@ -80,7 +80,7 @@ impl Action {
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
                         episode.title, 
-                        series.common_attributes.title, 
+                        series.title, 
                         err,
                     ));
                 }
@@ -106,7 +106,7 @@ impl Action {
                         "Successfully performed action `{}` on {} subtitle of movie `{}`",
                         self.action.to_string(),
                         subtitle.audio_language_item.name,
-                        movie.common_attributes.title,
+                        movie.title,
                     ));
                 }
                 Err(err) => {
@@ -114,7 +114,7 @@ impl Action {
                         format!("Error performing action `{}` on {} subtitle of movie `{}` due to error {}", 
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
-                        movie.common_attributes.title, 
+                        movie.title, 
                         err,
                     ));
                 }
