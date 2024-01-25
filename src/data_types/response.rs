@@ -25,6 +25,7 @@ pub struct Episode {
     #[serde(rename = "sonarrEpisodeId")]
     pub sonarr_episode_id: u32,
     pub subtitles: Vec<Subtitle>,
+    pub title: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
