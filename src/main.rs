@@ -1,6 +1,7 @@
 mod actions;
 mod cli;
 mod data_types;
+mod connection;
 
 use clap::Parser;
 use cli::Cli;

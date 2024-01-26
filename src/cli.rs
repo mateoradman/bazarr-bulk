@@ -3,7 +3,7 @@ use reqwest::{header, Client, Url};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, str::FromStr};
 
-use crate::{actions::Action, data_types::app_config::AppConfig};
+use crate::{actions::Action, connection::check_health, data_types::app_config::AppConfig};
 
 #[derive(Parser)]
 #[command(name = "Bazarr Bulk Actions CLI")]
@@ -50,6 +50,8 @@ impl Commands {
         let client = Client::builder().default_headers(headers).build()?;
         let base_url = format!("{}://{}:{}/api", config.protocol, config.host, config.port);
         let url = Url::from_str(&base_url)?;
+        check_health(&client, &url).await;
+
         let mut action = Action::new(client, url);
         match self {
             Commands::Movies { subcommand } => {

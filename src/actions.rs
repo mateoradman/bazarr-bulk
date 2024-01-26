@@ -46,23 +46,24 @@ impl Action {
         Ok(body)
     }
 
-    async fn perform(&self, payload: ActionPayload) -> Result<String, Box<dyn std::error::Error>> {
+    async fn perform(&self, payload: ActionPayload) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("subtitles");
         let response = self.client.patch(url).json(&payload).send().await?;
-        let res_body = response.text().await?;
-        Ok(res_body)
+        response.error_for_status()?;
+        Ok(())
     }
 
     async fn process_episode_subtitle(&self, series: &TVShow, episode: Episode) {
         for subtitle in episode.subtitles {
-            if subtitle.path.is_none() {
-                return;
+            if !subtitle.is_valid() {
+                continue;
             }
+
             let payload = ActionPayload {
                 id: episode.sonarr_episode_id,
                 media_type: String::from("episode"),
-                language: subtitle.audio_language_item.code2,
+                language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
                 action: self.action.clone(),
             };
@@ -72,7 +73,7 @@ impl Action {
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
                         episode.title, 
-                        series.common_attributes.title, 
+                        series.title, 
                     ));
                 }
                 Err(err) => {
@@ -80,7 +81,7 @@ impl Action {
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
                         episode.title, 
-                        series.common_attributes.title, 
+                        series.title, 
                         err,
                     ));
                 }
@@ -90,13 +91,13 @@ impl Action {
 
     async fn process_movie_subtitle(&self, movie: Movie) {
         for subtitle in movie.subtitles {
-            if subtitle.path.is_none() {
+            if !subtitle.is_valid() {
                 continue;
             }
             let payload = ActionPayload {
                 id: movie.radarr_id,
                 media_type: String::from("movie"),
-                language: subtitle.audio_language_item.code2,
+                language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
                 action: self.action.clone(),
             };
@@ -106,7 +107,7 @@ impl Action {
                         "Successfully performed action `{}` on {} subtitle of movie `{}`",
                         self.action.to_string(),
                         subtitle.audio_language_item.name,
-                        movie.common_attributes.title,
+                        movie.title,
                     ));
                 }
                 Err(err) => {
@@ -114,7 +115,7 @@ impl Action {
                         format!("Error performing action `{}` on {} subtitle of movie `{}` due to error {}", 
                         self.action.to_string(), 
                         subtitle.audio_language_item.name,
-                        movie.common_attributes.title, 
+                        movie.title, 
                         err,
                     ));
                 }
