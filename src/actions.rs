@@ -46,12 +46,12 @@ impl Action {
         Ok(body)
     }
 
-    async fn perform(&self, payload: ActionPayload) -> Result<String, Box<dyn std::error::Error>> {
+    async fn perform(&self, payload: ActionPayload) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("subtitles");
         let response = self.client.patch(url).json(&payload).send().await?;
-        let res_body = response.text().await?;
-        Ok(res_body)
+        response.error_for_status()?;
+        Ok(())
     }
 
     async fn process_episode_subtitle(&self, series: &TVShow, episode: Episode) {
