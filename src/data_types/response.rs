@@ -31,8 +31,7 @@ pub struct Episode {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AudioLanguageItem {
     pub name: String,
-    pub code2: String,
-    pub code3: String,
+    pub code2: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,4 +39,10 @@ pub struct Subtitle {
     pub path: Option<String>,
     #[serde(flatten)]
     pub audio_language_item: AudioLanguageItem,
+}
+
+impl Subtitle {
+    pub fn is_valid(&self) -> bool {
+        self.path.is_some() && self.audio_language_item.code2.is_some()
+    }
 }

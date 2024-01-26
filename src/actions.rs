@@ -56,13 +56,15 @@ impl Action {
 
     async fn process_episode_subtitle(&self, series: &TVShow, episode: Episode) {
         for subtitle in episode.subtitles {
-            if subtitle.path.is_none() {
-                return;
+            if !subtitle.is_valid() {
+                println!("Skipping invalid subtitle: {}", subtitle.audio_language_item.name);
+                continue;
             }
+
             let payload = ActionPayload {
                 id: episode.sonarr_episode_id,
                 media_type: String::from("episode"),
-                language: subtitle.audio_language_item.code2,
+                language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
                 action: self.action.clone(),
             };
@@ -90,13 +92,14 @@ impl Action {
 
     async fn process_movie_subtitle(&self, movie: Movie) {
         for subtitle in movie.subtitles {
-            if subtitle.path.is_none() {
+            if !subtitle.is_valid() {
+                println!("Skipping invalid subtitle: {}", subtitle.audio_language_item.name);
                 continue;
             }
             let payload = ActionPayload {
                 id: movie.radarr_id,
                 media_type: String::from("movie"),
-                language: subtitle.audio_language_item.code2,
+                language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
                 action: self.action.clone(),
             };
