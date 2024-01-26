@@ -57,7 +57,6 @@ impl Action {
     async fn process_episode_subtitle(&self, series: &TVShow, episode: Episode) {
         for subtitle in episode.subtitles {
             if !subtitle.is_valid() {
-                println!("Skipping invalid subtitle: {}", subtitle.audio_language_item.name);
                 continue;
             }
 
@@ -93,7 +92,6 @@ impl Action {
     async fn process_movie_subtitle(&self, movie: Movie) {
         for subtitle in movie.subtitles {
             if !subtitle.is_valid() {
-                println!("Skipping invalid subtitle: {}", subtitle.audio_language_item.name);
                 continue;
             }
             let payload = ActionPayload {
