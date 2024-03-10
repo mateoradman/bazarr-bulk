@@ -46,9 +46,11 @@ impl Action {
         Ok(body)
     }
 
-    async fn perform(&self, payload: ActionPayload) -> Result<(), Box<dyn std::error::Error>> {
+    async fn perform(&self, payload: ActionPayload, action: &ActionCommands) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("subtitles");
+        let action_string: String = action.to_string();
+        url.query_pairs_mut().append_pair("action", &action_string);
         let response = self.client.patch(url).json(&payload).send().await?;
         response.error_for_status()?;
         Ok(())
@@ -65,9 +67,8 @@ impl Action {
                 media_type: String::from("episode"),
                 language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
-                action: self.action.clone(),
             };
-            match self.perform(payload).await {
+            match self.perform(payload, &self.action).await {
                 Ok(_) => {
                     self.pb.set_message(format!("Successfully performed action `{}` on {} subtitle of episode `{}` of tv show `{}`", 
                         self.action.to_string(), 
@@ -99,9 +100,8 @@ impl Action {
                 media_type: String::from("movie"),
                 language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
-                action: self.action.clone(),
             };
-            match self.perform(payload).await {
+            match self.perform(payload, &self.action).await {
                 Ok(_) => {
                     self.pb.set_message(format!(
                         "Successfully performed action `{}` on {} subtitle of movie `{}`",

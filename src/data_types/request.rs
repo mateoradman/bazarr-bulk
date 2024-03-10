@@ -2,8 +2,6 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::cli::ActionCommands;
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum MediaType {
     Movie,
@@ -29,5 +27,4 @@ pub struct ActionPayload {
     pub media_type: String,
     pub language: String,
     pub path: String,
-    pub action: ActionCommands,
 }
