@@ -24,20 +24,25 @@ impl Cli {
     }
 }
 
+#[derive(clap::Args)]
+pub struct CommonArgs {
+    // skip N records
+    #[arg(long, default_value_t = 0)]
+    offset: u32,
+    // process N records
+    #[arg(long)]
+    limit: Option<u32>,
+    // list available actions
+    #[command(subcommand)]
+    subcommand: ActionCommands,
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
-    /// perform operations on movies
-    Movies {
-        /// list available actions
-        #[command(subcommand)]
-        subcommand: ActionCommands,
-    },
+    // perform operations on movies
+    Movies(CommonArgs),
     /// perform operations on tv shows
-    TVShows {
-        /// list available actions
-        #[command(subcommand)]
-        subcommand: ActionCommands,
-    },
+    TVShows(CommonArgs),
 }
 
 impl Commands {
@@ -54,12 +59,16 @@ impl Commands {
 
         let mut action = Action::new(client, url);
         match self {
-            Commands::Movies { subcommand } => {
-                action.action = subcommand;
+            Commands::Movies(c) => {
+                action.action = c.subcommand;
+                action.limit = c.limit;
+                action.offset = c.offset;
                 action.movies().await
             }
-            Commands::TVShows { subcommand } => {
-                action.action = subcommand;
+            Commands::TVShows(c) => {
+                action.action = c.subcommand;
+                action.limit = c.limit;
+                action.offset = c.offset;
                 action.tv_shows().await
             }
         }
