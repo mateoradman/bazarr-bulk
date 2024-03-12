@@ -10,7 +10,7 @@ use crate::{actions::Action, connection::check_health, data_types::app_config::A
 #[command(author = "Mateo Radman <radmanmateo@gmail.com>")]
 #[command(about = "Performs bulk operations on subtitles of movies and tv shows using Bazarr's API", long_about = None)]
 pub struct Cli {
-    // Path to the JSON configuration file
+    /// Path to the JSON configuration file
     #[arg(short, long, value_name = "FILE")]
     pub config: PathBuf,
 
@@ -26,22 +26,22 @@ impl Cli {
 
 #[derive(clap::Args)]
 pub struct CommonArgs {
-    // skip N records
+    /// Skip N records
     #[arg(long, default_value_t = 0)]
     offset: u32,
-    // process N records
+    /// Limit to N records [default: unlimited]
     #[arg(long)]
     limit: Option<u32>,
-    // list available actions
+    /// List available actions
     #[command(subcommand)]
     subcommand: ActionCommands,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    // perform operations on movies
+    /// Perform operations on movies
     Movies(CommonArgs),
-    /// perform operations on tv shows
+    /// Perform operations on tv shows
     TVShows(CommonArgs),
 }
 
@@ -77,19 +77,19 @@ impl Commands {
 
 #[derive(Subcommand, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
 pub enum ActionCommands {
-    /// sync all
+    /// Sync all
     Sync,
-    /// perform OCR fixes on all
+    /// Perform OCR fixes
     OCRFixes,
-    /// perform common fixes on all
+    /// Perform common fixes
     CommonFixes,
-    /// remove hearing impaired tags from subtitles
+    /// Remove hearing impaired tags from subtitles
     RemoveHearingImpaired,
-    /// remove style tags from subtitles
+    /// Remove style tags from subtitles
     RemoveStyleTags,
-    /// fix uppercase subtitles
+    /// Fix uppercase subtitles
     FixUppercase,
-    /// reverse RTL directioned subtitles
+    /// Reverse RTL directioned subtitles
     ReverseRTL,
 }
 
