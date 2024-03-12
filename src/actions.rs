@@ -138,7 +138,13 @@ impl Action {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
         let response = self.get_all::<Movie>(url, true).await?;
-        self.pb.set_length(response.data.len() as u64);
+        let num_movies: u64 = response.data.len() as u64;
+        if num_movies == 0 {
+            self.pb.finish_with_message("No movies found");
+            return Ok(());
+        }
+
+        self.pb.set_length(num_movies);
         for movie in response.data {
             self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
@@ -154,8 +160,13 @@ impl Action {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("series");
         let response = self.get_all::<TVShow>(url.clone(), true).await?;
-        let num_series = response.data.len();
-        self.pb.set_length(num_series as u64);
+        let num_series: u64= response.data.len() as u64;
+        if num_series == 0 {
+            self.pb.finish_with_message("No tv shows found");
+            return Ok(());
+        }
+
+        self.pb.set_length(num_series);
         url.path_segments_mut().unwrap().pop().push("episodes");
         for series in response.data {
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
