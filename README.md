@@ -2,6 +2,7 @@
 
 A CLI tool for performing actions in bulk on Bazarr movies and tv shows.
 List of supported actions:
+
 - sync
 - ocr-fixes
 - common-fixes
@@ -85,24 +86,26 @@ bb --help
 2. Extract the archive
 3. Run bb.exe
 
-
 ## Usage
+
 1. Create a JSON config file based on the template [file](./examples/config.json).
 2. Run `bb --config your-config.json` [movies|tv-shows] [ACTION]
 
 ### General help
+
 ```bash
 bb --help
+# Performs bulk operations on subtitles of movies and tv shows using Bazarr's API
 
 Usage: bb --config <FILE> <COMMAND>
 
 Commands:
-  movies    perform operations on movies
-  tv-shows  perform operations on tv shows
+  movies    Perform operations on movies
+  tv-shows  Perform operations on tv shows
   help      Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config <FILE>
+  -c, --config <FILE>  Path to the JSON configuration file
   -h, --help           Print help
 ```
 
@@ -110,43 +113,46 @@ Options:
 
 ```bash
 bb movies --help
-# perform operations on movies
+# Perform operations on movies
 
-Usage: bb --config <FILE> movies <COMMAND>
+Usage: bb --config <FILE> movies [OPTIONS] <COMMAND>
 
 Commands:
-  sync                     sync all
-  ocr-fixes                perform OCR fixes on all
-  common-fixes             perform common fixes on all
-  remove-hearing-impaired  remove hearing impaired tags from subtitles
-  remove-style-tags        remove style tags from subtitles
-  fix-uppercase            fix uppercase subtitles
-  reverse-rtl              reverse RTL directioned subtitles
+  sync                     Sync all
+  ocr-fixes                Perform OCR fixes
+  common-fixes             Perform common fixes
+  remove-hearing-impaired  Remove hearing impaired tags from subtitles
+  remove-style-tags        Remove style tags from subtitles
+  fix-uppercase            Fix uppercase subtitles
+  reverse-rtl              Reverse RTL directioned subtitles
   help                     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+      --offset <OFFSET>  Skip N records [default: 0]
+      --limit <LIMIT>    Limit to N records [default: unlimited]
+  -h, --help             Print help
 ```
-
 
 ### TV Shows
 
 ```bash
 bb tv-shows --help
-# perform operations on tv shows
+# Perform operations on tv shows
 
-Usage: bb --config <FILE> tv-shows <COMMAND>
+Usage: bb --config <FILE> tv-shows [OPTIONS] <COMMAND>
 
 Commands:
-  sync                     sync all
-  ocr-fixes                perform OCR fixes on all
-  common-fixes             perform common fixes on all
-  remove-hearing-impaired  remove hearing impaired tags from subtitles
-  remove-style-tags        remove style tags from subtitles
-  fix-uppercase            fix uppercase subtitles
-  reverse-rtl              reverse RTL directioned subtitles
+  sync                     Sync all
+  ocr-fixes                Perform OCR fixes
+  common-fixes             Perform common fixes
+  remove-hearing-impaired  Remove hearing impaired tags from subtitles
+  remove-style-tags        Remove style tags from subtitles
+  fix-uppercase            Fix uppercase subtitles
+  reverse-rtl              Reverse RTL directioned subtitles
   help                     Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help  Print help
+      --offset <OFFSET>  Skip N records [default: 0]
+      --limit <LIMIT>    Limit to N records [default: unlimited]
+  -h, --help             Print help
 ```

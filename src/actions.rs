@@ -16,6 +16,8 @@ pub struct Action {
     pub client: Client,
     pub base_url: Url,
     pub action: ActionCommands,
+    pub offset: u32,
+    pub limit: Option<u32>,
     pub pb: ProgressBar,
 }
 
@@ -31,15 +33,24 @@ impl Action {
             client,
             base_url,
             action: ActionCommands::Sync,
+            offset: 0,
+            limit: None,
             pb,
         }
     }
 
-    async fn get_all<T>(&self, url: Url) -> Result<PaginatedResponse<T>, Box<dyn std::error::Error>>
+    async fn get_all<T>(&self, mut url: Url, limit_records: bool) -> Result<PaginatedResponse<T>, Box<dyn std::error::Error>>
     where
         T: DeserializeOwned,
         T: Debug,
     {
+        if limit_records {
+            let length: i32 = match self.limit {
+                Some(val) => val as i32,
+                None => -1
+            };
+            url.query_pairs_mut().append_pair("length", &length.to_string()).append_pair("start", &self.offset.to_string());
+        }
         let req = self.client.get(url);
         let res = req.send().await?;
         let body: PaginatedResponse<T> = res.json().await?;
@@ -126,8 +137,14 @@ impl Action {
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
-        let response = self.get_all::<Movie>(url).await?;
-        self.pb.set_length(response.data.len() as u64);
+        let response = self.get_all::<Movie>(url, true).await?;
+        let num_movies: u64 = response.data.len() as u64;
+        if num_movies == 0 {
+            self.pb.finish_with_message("No movies found");
+            return Ok(());
+        }
+
+        self.pb.set_length(num_movies);
         for movie in response.data {
             self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
@@ -142,15 +159,20 @@ impl Action {
     pub async fn tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("series");
-        let response = self.get_all::<TVShow>(url.clone()).await?;
-        let num_series = response.data.len();
-        self.pb.set_length(num_series as u64);
+        let response = self.get_all::<TVShow>(url.clone(), true).await?;
+        let num_series: u64= response.data.len() as u64;
+        if num_series == 0 {
+            self.pb.finish_with_message("No tv shows found");
+            return Ok(());
+        }
+
+        self.pb.set_length(num_series);
         url.path_segments_mut().unwrap().pop().push("episodes");
         for series in response.data {
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
             let mut new_url = url.clone();
             new_url.set_query(Some(&query_param));
-            let response = self.get_all::<Episode>(new_url).await?;
+            let response = self.get_all::<Episode>(new_url, false).await?;
             for episode in response.data {
                 self.process_episode_subtitle(&series, episode).await;
             }
