@@ -24,13 +24,6 @@ pub struct Action {
 impl Action {
     pub fn new(client: Client, base_url: Url) -> Self {
         let pb = ProgressBar::new(0);
-        pb.set_style(
-            ProgressStyle::with_template(
-                "[{spinner} {bar:60.green/yellow}] {pos:>7}/{len:7}\n{msg}",
-            )
-            .unwrap()
-            .progress_chars("##-"),
-        );
         Self {
             client,
             base_url,
@@ -159,6 +152,11 @@ impl Action {
     }
 
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.pb.set_style(
+            ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
+                .unwrap()
+                .progress_chars("##-"),
+        );
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
         let response = self.get_all::<Movie>(url, true).await?;
