@@ -1,7 +1,8 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, process::exit};
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use reqwest::{Client, Url};
+use reqwest::Url;
+use reqwest_middleware::ClientWithMiddleware;
 use serde::de::DeserializeOwned;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
 };
 
 pub struct Action {
-    pub client: Client,
+    pub client: ClientWithMiddleware,
     pub base_url: Url,
     pub action: ActionCommands,
     pub offset: u32,
@@ -22,7 +23,7 @@ pub struct Action {
 }
 
 impl Action {
-    pub fn new(client: Client, base_url: Url) -> Self {
+    pub fn new(client: ClientWithMiddleware, base_url: Url) -> Self {
         let pb = ProgressBar::new(0);
         Self {
             client,
@@ -61,15 +62,12 @@ impl Action {
     async fn perform(
         &self,
         payload: ActionPayload,
-        action: &ActionCommands,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<reqwest::Response, reqwest_middleware::Error> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("subtitles");
-        let action_string: String = action.to_string();
+        let action_string: String = self.action.to_string();
         url.query_pairs_mut().append_pair("action", &action_string);
-        let response = self.client.patch(url).json(&payload).send().await?;
-        response.error_for_status()?;
-        Ok(())
+        self.client.patch(url).json(&payload).send().await
     }
 
     async fn process_episode_subtitle(&self, pb: &ProgressBar, episode: Episode) {
@@ -90,23 +88,30 @@ impl Action {
                 language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
             };
-            match self.perform(payload, &self.action).await {
-                Ok(_) => {
-                    pb.set_message(format!(
-                        "Successfully performed action {} on {} subtitle of episode {}",
-                        self.action.to_string(),
-                        subtitle.audio_language_item.name,
-                        episode.title,
-                    ));
-                }
+            match self.perform(payload).await {
+                Ok(res) => match res.error_for_status() {
+                    Ok(_) => {
+                        pb.set_message(format!(
+                            "Successfully performed action {} on {} subtitle of episode {}",
+                            self.action.to_string(),
+                            subtitle.audio_language_item.name,
+                            episode.title,
+                        ));
+                    }
+                    Err(err) => {
+                        pb.set_message(format!(
+                            "Error performing action {} on {} subtitle of episode {}: {}",
+                            self.action.to_string(),
+                            subtitle.audio_language_item.name,
+                            episode.title,
+                            err,
+                        ));
+                    }
+                },
                 Err(err) => {
-                    pb.set_message(format!(
-                        "Error performing action {} on {} subtitle of episode {} due to error {}",
-                        self.action.to_string(),
-                        subtitle.audio_language_item.name,
-                        episode.title,
-                        err,
-                    ));
+                    self.pb
+                        .set_message(format!("Error connecting to Bazarr: {}", err));
+                    exit(1);
                 }
             }
         }
@@ -129,23 +134,30 @@ impl Action {
                 language: subtitle.audio_language_item.code2.unwrap(),
                 path: subtitle.path.unwrap(),
             };
-            match self.perform(payload, &self.action).await {
-                Ok(_) => {
-                    self.pb.set_message(format!(
-                        "Successfully performed action {} on {} subtitle of movie {}",
-                        self.action.to_string(),
-                        subtitle.audio_language_item.name,
-                        movie.title,
-                    ));
-                }
+            match self.perform(payload).await {
+                Ok(res) => match res.error_for_status() {
+                    Ok(_) => {
+                        self.pb.set_message(format!(
+                            "Successfully performed action {} on {} subtitle of movie {}",
+                            self.action.to_string(),
+                            subtitle.audio_language_item.name,
+                            movie.title,
+                        ));
+                    }
+                    Err(err) => {
+                        self.pb.set_message(format!(
+                            "Error performing action {} on {} subtitle of episode {}: {}",
+                            self.action.to_string(),
+                            subtitle.audio_language_item.name,
+                            movie.title,
+                            err,
+                        ));
+                    }
+                },
                 Err(err) => {
-                    self.pb.set_message(format!(
-                        "Error performing action {} on {} subtitle of movie {} due to error {}",
-                        self.action.to_string(),
-                        subtitle.audio_language_item.name,
-                        movie.title,
-                        err,
-                    ));
+                    self.pb
+                        .set_message(format!("Error connecting to Bazarr: {}", err));
+                    exit(1);
                 }
             }
         }

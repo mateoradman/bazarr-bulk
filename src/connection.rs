@@ -1,8 +1,9 @@
 use std::process::exit;
 
-use reqwest::{Client, Url};
+use reqwest::Url;
+use reqwest_middleware::ClientWithMiddleware;
 
-pub async fn check_health(client: &Client, url: &Url) {
+pub async fn check_health(client: &ClientWithMiddleware, url: &Url) {
     let mut url = url.clone();
     url.path_segments_mut().unwrap().push("system/status");
     let response = client.get(url).send().await;
@@ -24,11 +25,10 @@ pub async fn check_health(client: &Client, url: &Url) {
                 println!("Attempting to continue anyway...")
             }
         }
-        Err(e) => {
+        Err(_) => {
             println!(
-            "Error while connecting to Bazarr: {}. 
-            Please verify that the protocol, host, and port provided in the configuration file are correct.",
-            e
+                "Unable to establish connection to Bazarr. 
+                Please verify that the protocol, host, and port provided in the configuration file are correct."
             );
             exit(1);
         }
