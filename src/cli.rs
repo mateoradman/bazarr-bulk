@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use reqwest::{header, Client, Url};
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use crate::{actions::Action, connection::check_health, data_types::app_config::AppConfig};
 
@@ -14,13 +16,24 @@ pub struct Cli {
     #[arg(short, long, value_name = "FILE")]
     pub config: PathBuf,
 
+    /// Number of times to retry the request in case of lost connection
+    #[arg(short, long, default_value_t = 3)]
+    pub max_retries: u32,
+
+    /// Duration of the retry interval (seconds)
+    #[arg(short, long, default_value_t = 10)]
+    pub retry_interval: u64,
+
     #[command(subcommand)]
     pub command: Commands,
 }
 
 impl Cli {
     pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
-        self.command.run(config).await
+        println!("Bazarr Bulk CLI v{}", env!("CARGO_PKG_VERSION"));
+        self.command
+            .run(config, self.max_retries, self.retry_interval)
+            .await
     }
 }
 
@@ -46,13 +59,26 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run(
+        self,
+        config: AppConfig,
+        max_retries: u32,
+        retry_interval: u64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             "X-API-KEY",
             header::HeaderValue::from_str(&config.api_key).unwrap(),
         );
-        let client = Client::builder().default_headers(headers).build()?;
+        let min_retry_interval = Duration::new(retry_interval, 0);
+        let max_retry_interval = Duration::new(retry_interval + 1, 0);
+        let retry_policy = ExponentialBackoff::builder()
+            .retry_bounds(min_retry_interval, max_retry_interval)
+            .build_with_max_retries(max_retries);
+        let reqwest_client = Client::builder().default_headers(headers).build()?;
+        let client = ClientBuilder::new(reqwest_client)
+            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+            .build();
         let base_url = format!("{}://{}:{}/api", config.protocol, config.host, config.port);
         let url = Url::from_str(&base_url)?;
         check_health(&client, &url).await;
