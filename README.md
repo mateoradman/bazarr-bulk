@@ -91,7 +91,7 @@ bb --help
 1. Create a JSON config file based on the template [file](./examples/config.json).
 2. Run `bb --config your-config.json` [movies|tv-shows] [ACTION]
 
-### General help
+### CLI Manual
 
 ```bash
 bb --help
@@ -155,4 +155,20 @@ Options:
       --offset <OFFSET>  Skip N records [default: 0]
       --limit <LIMIT>    Limit to N records [default: unlimited]
   -h, --help             Print help
+```
+
+#### Sync Options
+
+```bash
+bb movies/tv-shows sync --help
+# Customize tv-show/movie subtitle sync options
+
+Usage: bb movies sync [OPTIONS]
+
+Options:
+  -r <REFERENCE>       Reference for sync from video file track number (a:0), subtitle (s:0), or some subtitles file path
+  -m <MAX OFFSET>      Seconds of offset allowed when syncing [default: null]
+  -n                   No fix framerate [default: false]
+  -g                   Use Golden-Section search [default: false]
+  -h, --help           Print help
 ```
