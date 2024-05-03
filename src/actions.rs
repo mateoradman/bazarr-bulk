@@ -1,4 +1,4 @@
-use std::{fmt::Debug, process::exit};
+use std::{borrow::Borrow, fmt::Debug, process::exit};
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest::Url;
@@ -28,7 +28,7 @@ impl Action {
         Self {
             client,
             base_url,
-            action: ActionCommands::Sync,
+            action: ActionCommands::OCRFixes,
             offset: 0,
             limit: None,
             pb,
@@ -61,12 +61,18 @@ impl Action {
 
     async fn perform(
         &self,
-        payload: ActionPayload,
+        mut payload: ActionPayload,
     ) -> Result<reqwest::Response, reqwest_middleware::Error> {
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("subtitles");
         let action_string: String = self.action.to_string();
         url.query_pairs_mut().append_pair("action", &action_string);
+        if let ActionCommands::Sync(sync_options) = &self.action.borrow() {
+            payload.reference = sync_options.reference.clone();
+            payload.max_offset_seconds = sync_options.max_offset_seconds;
+            payload.no_fix_framerate = Some(sync_options.no_fix_framerate);
+            payload.gss = Some(sync_options.gss);
+        }
         self.client.patch(url).json(&payload).send().await
     }
 
@@ -82,12 +88,8 @@ impl Action {
                 subtitle.audio_language_item.name,
                 episode.title,
             ));
-            let payload = ActionPayload {
-                id: episode.sonarr_episode_id,
-                media_type: String::from("episode"),
-                language: subtitle.audio_language_item.code2.unwrap(),
-                path: subtitle.path.unwrap(),
-            };
+
+            let payload = ActionPayload::new(episode.sonarr_episode_id, "episode", &subtitle);
             match self.perform(payload).await {
                 Ok(res) => match res.error_for_status() {
                     Ok(_) => {
@@ -128,12 +130,7 @@ impl Action {
                 subtitle.audio_language_item.name,
                 movie.title,
             ));
-            let payload = ActionPayload {
-                id: movie.radarr_id,
-                media_type: String::from("movie"),
-                language: subtitle.audio_language_item.code2.unwrap(),
-                path: subtitle.path.unwrap(),
-            };
+            let payload = ActionPayload::new(movie.radarr_id, "movie", &subtitle);
             match self.perform(payload).await {
                 Ok(res) => match res.error_for_status() {
                     Ok(_) => {
