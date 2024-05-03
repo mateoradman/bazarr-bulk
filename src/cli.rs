@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use reqwest::{header, Client, Url};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
@@ -101,10 +101,10 @@ impl Commands {
     }
 }
 
-#[derive(Subcommand, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, ValueEnum)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActionCommands {
     /// Sync all
-    Sync,
+    Sync(SyncOptions),
     /// Perform OCR fixes
     OCRFixes,
     /// Perform common fixes
@@ -122,7 +122,7 @@ pub enum ActionCommands {
 impl ToString for ActionCommands {
     fn to_string(&self) -> String {
         match self {
-            ActionCommands::Sync => "sync".to_string(),
+            ActionCommands::Sync(_) => "sync".to_string(),
             ActionCommands::OCRFixes => "OCR_fixes".to_string(),
             ActionCommands::CommonFixes => "common".to_string(),
             ActionCommands::RemoveHearingImpaired => "remove_HI".to_string(),
@@ -131,4 +131,19 @@ impl ToString for ActionCommands {
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
         }
     }
+}
+#[derive(clap::Args, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SyncOptions {
+    /// Reference for sync from video file track number (a:0), subtitle (s:0), or some subtitles file path
+    #[arg(short)]
+    pub reference: Option<String>,
+    /// Seconds of offset allowed when syncing [default: null]
+    #[arg(short, value_name = "MAX OFFSET")]
+    pub max_offset_seconds: Option<u32>,
+    /// Do not attempt to fix framerate [default: false]
+    #[arg(short, default_value_t = false)]
+    pub no_fix_framerate: bool,
+    /// Use Golden-Section search [default: false]
+    #[arg(short, default_value_t = false)]
+    pub gss: bool,
 }
