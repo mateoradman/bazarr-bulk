@@ -21,7 +21,7 @@
         attrs system pkgs);
   in {
     packages = perSystem (system: pkgs: {
-      default = pkgs.callPackage ({rustPlatform, ...}: let
+      bazarr-bulk = pkgs.callPackage ({rustPlatform, ...}: let
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         rev = self.shortRev or self.dirtyShortRev or "dirty";
       in
@@ -31,7 +31,11 @@
           src = ./.;
           strictDeps = true;
           cargoLock.lockFile = ./Cargo.lock;
+
+          meta.mainProgram = "bb";
         }) {};
+
+      default = self.packages.${system}.bazarr-bulk;
     });
 
     formatter = perSystem (_: pkgs: pkgs.alejandra);
