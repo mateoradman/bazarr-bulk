@@ -1,0 +1,7 @@
+{
+  "host": "0.0.0.0",
+  "protocol": "http",
+  "port": "6767",
+  "base": "/bazarr",
+  "apiKey": "<YOUR_API_KEY>"
+}

@@ -79,7 +79,7 @@ impl Commands {
         let client = ClientBuilder::new(reqwest_client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
-        let base_url = format!("{}://{}:{}/api", config.protocol, config.host, config.port);
+        let base_url = format!("{}://{}:{}{}/api", config.protocol, config.host, config.port, config.base);
         let url = Url::from_str(&base_url)?;
         check_health(&client, &url).await;
 

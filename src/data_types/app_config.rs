@@ -25,6 +25,7 @@ pub struct AppConfig {
     pub protocol: Protocol,
     pub host: String,
     pub port: String,
+    pub base: String,
     pub api_key: String,
 }
 
@@ -35,6 +36,7 @@ impl AppConfig {
             .set_default("host", "0.0.0.0")?
             .set_default("port", "6767")?
             .set_default("protocol", "http")?
+            .set_default("base", "")?
             .build()?;
 
         config.try_deserialize()
