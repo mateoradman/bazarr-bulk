@@ -1,6 +1,7 @@
 use std::fmt;
 
 use config::{Config, ConfigError, File, FileFormat};
+use reqwest::Url;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +25,8 @@ impl fmt::Display for Protocol {
 pub struct AppConfig {
     pub protocol: Protocol,
     pub host: String,
-    pub port: String,
+    pub port: Option<String>,
+    pub base_url: String,
     pub api_key: String,
 }
 
@@ -33,10 +35,30 @@ impl AppConfig {
         let config = Config::builder()
             .add_source(File::new(config_path, FileFormat::Json))
             .set_default("host", "0.0.0.0")?
-            .set_default("port", "6767")?
             .set_default("protocol", "http")?
+            .set_default("baseUrl", "")?
             .build()?;
 
         config.try_deserialize()
+    }
+
+    pub fn construct_url(&self) -> Url {
+        let mut bazarr_url = format!("{}://{}", self.protocol, self.host);
+
+        if let Some(port) = &self.port {
+            bazarr_url = format!("{}:{}", bazarr_url, port);
+        }
+
+        // clean the base_url by removing leading and trailing slashes
+        let clean_base_url = self.base_url.trim_matches('/');
+
+        let mut url = Url::parse(&bazarr_url).unwrap();
+        url.path_segments_mut()
+            .unwrap()
+            .push(clean_base_url)
+            .push("api");
+
+        println!("Bazarr API URL: {}", url);
+        url
     }
 }
