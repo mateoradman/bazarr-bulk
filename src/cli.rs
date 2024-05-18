@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
-use reqwest::{header, Client, Url};
+use reqwest::{header, Client};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, str::FromStr, time::Duration};
+use std::{path::PathBuf, time::Duration};
 
 use crate::{actions::Action, connection::check_health, data_types::app_config::AppConfig};
 
@@ -79,8 +79,7 @@ impl Commands {
         let client = ClientBuilder::new(reqwest_client)
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
-        let base_url = format!("{}://{}:{}{}/api", config.protocol, config.host, config.port, config.base);
-        let url = Url::from_str(&base_url)?;
+        let url = config.construct_url();
         check_health(&client, &url).await;
 
         let mut action = Action::new(client, url);

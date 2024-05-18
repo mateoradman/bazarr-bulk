@@ -1,6 +1,8 @@
 {
+  "_comment": "This is a sample configuration file. Port and Base URL are optional fields",
   "host": "0.0.0.0",
   "protocol": "http",
+  "apiKey": "<YOUR_API_KEY>",
   "port": "6767",
-  "apiKey": "<YOUR_API_KEY>"
+  "baseUrl": "bazarr"
 }
