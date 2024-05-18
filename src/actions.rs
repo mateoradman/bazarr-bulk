@@ -45,9 +45,9 @@ impl Action {
         T: Debug,
     {
         if limit_records {
-            let length: i32 = match self.limit {
-                Some(val) => val as i32,
-                None => -1,
+            let length = match self.limit {
+                Some(val) => val,
+                None => std::u32::MAX,
             };
             url.query_pairs_mut()
                 .append_pair("length", &length.to_string())
