@@ -2,6 +2,17 @@ use std::process::exit;
 
 use reqwest::Url;
 use reqwest_middleware::ClientWithMiddleware;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct BazarrStatusData {
+    pub bazarr_version: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BazarrStatus {
+    pub data: BazarrStatusData,
+}
 
 pub async fn check_health(client: &ClientWithMiddleware, url: &Url) {
     let mut url = url.clone();
@@ -10,7 +21,18 @@ pub async fn check_health(client: &ClientWithMiddleware, url: &Url) {
     match response {
         Ok(res) => {
             if res.status().is_success() {
-                println!("Bazarr API is healthy.");
+                let json: Result<BazarrStatus, reqwest::Error> = res.json().await;
+                match json {
+                    Ok(json) => {
+                        if json.data.bazarr_version.is_some() {
+                            println!("Bazarr API is healthy.");
+                        }
+                    }
+                    Err(_) => {
+                        eprintln!("Error while connecting to Bazarr");
+                        exit(1);
+                    }
+                }
             } else if res.status() == reqwest::StatusCode::UNAUTHORIZED {
                 eprintln!(
                     "Unauthorized request! 
