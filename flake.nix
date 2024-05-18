@@ -42,9 +42,20 @@
 
     devShells = perSystem (_: pkgs: {
       default = pkgs.mkShell {
+        strictDeps = true;
+
+        env.RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+
+        nativeBuildInputs = with pkgs; [
+          cargo
+          rustc
+
+          rust-analyzer-unwrapped
+          rustfmt
+        ];
+
         packages = with pkgs; [
           alejandra
-          # ... more dev packages
         ];
       };
     });
