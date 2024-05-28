@@ -13,7 +13,7 @@ use crate::{actions::Action, connection::check_health, data_types::app_config::A
 #[command(about = "Performs bulk operations on subtitles of movies and tv shows using Bazarr's API", long_about = None)]
 pub struct Cli {
     /// Path to the JSON configuration file
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(required = true, short, long, value_name = "FILE")]
     pub config: PathBuf,
 
     /// Number of times to retry the request in case of lost connection
@@ -39,10 +39,13 @@ impl Cli {
 
 #[derive(clap::Args)]
 pub struct CommonArgs {
-    /// Skip N records
+    /// Filter records by Sonarr/Radarr ID (comma-separated)
+    #[arg(long, required = false, value_delimiter = ',')]
+    ids: Vec<u32>,
+    /// Skip N records (ignored if ids are specified) [default: skip none]
     #[arg(long, default_value_t = 0)]
     offset: u32,
-    /// Limit to N records [default: unlimited]
+    /// Limit to N records (ignored if ids are specified) [default: unlimited]
     #[arg(long)]
     limit: Option<u32>,
     /// List available actions
@@ -86,12 +89,14 @@ impl Commands {
         match self {
             Commands::Movies(c) => {
                 action.action = c.subcommand;
+                action.ids = c.ids;
                 action.limit = c.limit;
                 action.offset = c.offset;
                 action.movies().await
             }
             Commands::TVShows(c) => {
                 action.action = c.subcommand;
+                action.ids = c.ids;
                 action.limit = c.limit;
                 action.offset = c.offset;
                 action.tv_shows().await

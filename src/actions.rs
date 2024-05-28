@@ -17,6 +17,7 @@ pub struct Action {
     pub client: ClientWithMiddleware,
     pub base_url: Url,
     pub action: ActionCommands,
+    pub ids: Vec<u32>,
     pub offset: u32,
     pub limit: Option<u32>,
     pub pb: ProgressBar,
@@ -29,22 +30,31 @@ impl Action {
             client,
             base_url,
             action: ActionCommands::OCRFixes,
+            ids: Vec::new(),
             offset: 0,
             limit: None,
             pb,
         }
     }
 
-    async fn get_all<T>(
-        &self,
-        mut url: Url,
-        limit_records: bool,
-    ) -> Result<PaginatedResponse<T>, Box<dyn std::error::Error>>
+    async fn get_all<T>(&self, url: Url) -> Result<PaginatedResponse<T>, Box<dyn std::error::Error>>
     where
         T: DeserializeOwned,
         T: Debug,
     {
-        if limit_records {
+        let req = self.client.get(url);
+        let res = req.send().await?;
+        let body: PaginatedResponse<T> = res.json().await?;
+        Ok(body)
+    }
+
+    async fn limit_records(&self, mut url: Url, query_param: &str) -> Url {
+        if !self.ids.is_empty() {
+            for id in &self.ids {
+                url.query_pairs_mut()
+                    .append_pair(query_param, &id.to_string());
+            }
+        } else if self.limit.is_some() || self.offset > 0 {
             let length = match self.limit {
                 Some(val) => val,
                 None => std::u32::MAX,
@@ -53,10 +63,7 @@ impl Action {
                 .append_pair("length", &length.to_string())
                 .append_pair("start", &self.offset.to_string());
         }
-        let req = self.client.get(url);
-        let res = req.send().await?;
-        let body: PaginatedResponse<T> = res.json().await?;
-        Ok(body)
+        url
     }
 
     async fn perform(
@@ -168,7 +175,8 @@ impl Action {
         );
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
-        let response = self.get_all::<Movie>(url, true).await?;
+        url = self.limit_records(url, "radarrid[]").await;
+        let response = self.get_all::<Movie>(url).await?;
         let num_movies: u64 = response.data.len() as u64;
         if num_movies == 0 {
             self.pb.finish_with_message("No movies found");
@@ -199,7 +207,8 @@ impl Action {
         );
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("series");
-        let response = self.get_all::<TVShow>(url.clone(), true).await?;
+        url = self.limit_records(url, "seriesid[]").await;
+        let response = self.get_all::<TVShow>(url.clone()).await?;
         let num_series: u64 = response.data.len() as u64;
         if num_series == 0 {
             pb_main.finish_with_message("No tv shows found");
@@ -219,7 +228,7 @@ impl Action {
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
             let mut new_url = url.clone();
             new_url.set_query(Some(&query_param));
-            let response = self.get_all::<Episode>(new_url, false).await?;
+            let response = self.get_all::<Episode>(new_url).await?;
             let num_episodes: u64 = response.data.len() as u64;
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
