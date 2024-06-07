@@ -233,7 +233,7 @@ impl Action {
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
                 sub_pb.finish_with_message("No episodes found");
-                return Ok(());
+                continue;
             }
             for episode in response.data {
                 self.process_episode_subtitle(&sub_pb, episode).await;
