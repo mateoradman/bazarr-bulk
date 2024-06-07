@@ -1,7 +1,7 @@
 [package]
 name = "bazarr-bulk"
 authors = ["Mateo Radman <radmanmateo@gmail.com>"]
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "A bulk operation CLI tool for Bazarr"
 documentation = "https://github.com/mateoradman/bazarr-bulk"
