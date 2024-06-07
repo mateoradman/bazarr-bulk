@@ -128,8 +128,9 @@ Commands:
   help                     Print this message or the help of the given subcommand(s)
 
 Options:
-      --offset <OFFSET>  Skip N records [default: 0]
-      --limit <LIMIT>    Limit to N records [default: unlimited]
+      --ids <IDS>        Filter records by Sonarr/Radarr ID (comma-separated)
+      --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
+      --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
   -h, --help             Print help
 ```
 
@@ -152,8 +153,9 @@ Commands:
   help                     Print this message or the help of the given subcommand(s)
 
 Options:
-      --offset <OFFSET>  Skip N records [default: 0]
-      --limit <LIMIT>    Limit to N records [default: unlimited]
+      --ids <IDS>        Filter records by Sonarr/Radarr ID (comma-separated)
+      --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
+      --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
   -h, --help             Print help
 ```
 
