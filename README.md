@@ -88,12 +88,17 @@ bb --help
 
 ## Configuration File
 
-The [configuration file](./examples/config.json) contains various fields to set up and run the service. Below is a breakdown of each field and its purpose:
+The [configuration file](./examples/config.json) contains various fields to set up and communicate with Bazarr. Below is a breakdown of each field and its purpose:
 
 - **`host`**:  
-  Defines the IP address on which the service will run.
+  Defines Bazarr's IP address.
 
   - Default: `"0.0.0.0"`
+
+- **`port`** (optional):  
+  Defines Bazarr's port. Can be omitted if Bazarr is accessible through ports 80 (HTTP) or 443 (HTTPS).
+
+  - Default: `"6767"` (You can change this to any available port on your server).
 
 - **`protocol`**:  
   Specifies the protocol to be used by the service (HTTP or HTTPS). **Note: Bazarr must be available using the specified protocol.**
@@ -105,18 +110,12 @@ The [configuration file](./examples/config.json) contains various fields to set 
 
   - Replace `<YOUR_API_KEY>` with the actual Bazarr API key.
 
-- **`port`** (optional):  
-  The port number on which Bazarr is accessible.
-
-  - Default: `"6767"` (You can change this to any available port on your server).
-
 - **`baseUrl`** (optional):  
   The [base URL](https://wiki.bazarr.media/Additional-Configuration/Settings/#url-base) or path at which the service will be accessible.
 
   - Default: `""` (You can modify this based on your application's routing needs).
 
   Example:
-
   - `http://MY-IP:MY-PORT/` baseUrl should be an empty string or omitted.
   - `http://MY-IP:MY-PORT/bazarr/` - baseUrl should be `"bazarr"`.
 
