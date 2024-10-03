@@ -1,6 +1,6 @@
 # BAZARR BULK CLI
 
-A CLI tool for performing actions in bulk on Bazarr movies and tv shows.
+A CLI tool for performing actions in bulk on Bazarr movies and TV shows.  
 List of supported actions:
 
 - sync
@@ -14,7 +14,7 @@ List of supported actions:
 
 ### Install with cargo
 
-[bazarr-bulk](https://crates.io/crates/bazarr-bulk) is published on crates.io.
+[bazarr-bulk](https://crates.io/crates/bazarr-bulk) is published on crates.io.  
 In order to install a Rust crate from crates.io, it is required to have [Rust and cargo installed](https://doc.rust-lang.org/cargo/getting-started/installation.html) on your system.
 
 ```sh
@@ -23,7 +23,7 @@ cargo install bazarr-bulk
 
 ### Manual installation from an archive
 
-[Latest release](https://github.com/mateoradman/bazarr-bulk/releases/latest) page provides an option to manually install the bb binary from an archive. The archive is available for Linux, MacOS, and Windows.
+[Latest release](https://github.com/mateoradman/bazarr-bulk/releases/latest) page provides an option to manually install the bb binary from an archive. The archive is available for Linux, MacOS, and Windows.  
 Download, extract and move the binary to the desired directory, and set execution permissions.
 
 #### Linux
@@ -86,6 +86,40 @@ bb --help
 2. Extract the archive
 3. Run bb.exe
 
+## Configuration File
+
+The [configuration file](./examples/config.json) contains various fields to set up and run the service. Below is a breakdown of each field and its purpose:
+
+- **`host`**:  
+  Defines the IP address on which the service will run.
+
+  - Default: `"0.0.0.0"`
+
+- **`protocol`**:  
+  Specifies the protocol to be used by the service (HTTP or HTTPS). **Note: Bazarr must be available using the specified protocol.**
+
+  - Default: `"http"`.
+
+- **`apiKey`**:  
+  The [API key](https://wiki.bazarr.media/Additional-Configuration/Webhooks/#where-can-i-find-the-bazarr-api-key) used to authenticate Bazarr requests.
+
+  - Replace `<YOUR_API_KEY>` with the actual Bazarr API key.
+
+- **`port`** (optional):  
+  The port number on which Bazarr is accessible.
+
+  - Default: `"6767"` (You can change this to any available port on your server).
+
+- **`baseUrl`** (optional):  
+  The [base URL](https://wiki.bazarr.media/Additional-Configuration/Settings/#url-base) or path at which the service will be accessible.
+
+  - Default: `""` (You can modify this based on your application's routing needs).
+
+  Example:
+
+  - `http://MY-IP:MY-PORT/` baseUrl should be an empty string or omitted.
+  - `http://MY-IP:MY-PORT/bazarr/` - baseUrl should be `"bazarr"`.
+
 ## Usage
 
 1. Create a JSON config file based on the template [file](./examples/config.json).
@@ -95,13 +129,13 @@ bb --help
 
 ```bash
 bb --help
-# Performs bulk operations on subtitles of movies and tv shows using Bazarr's API
+# Performs bulk operations on subtitles of movies and TV shows using Bazarr's API
 
 Usage: bb --config <FILE> <COMMAND>
 
 Commands:
   movies    Perform operations on movies
-  tv-shows  Perform operations on tv shows
+  tv-shows  Perform operations on TV shows
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -138,7 +172,7 @@ Options:
 
 ```bash
 bb tv-shows --help
-# Perform operations on tv shows
+# Perform operations on TV shows
 
 Usage: bb --config <FILE> tv-shows [OPTIONS] <COMMAND>
 
@@ -163,7 +197,7 @@ Options:
 
 ```bash
 bb movies/tv-shows sync --help
-# Customize tv-show/movie subtitle sync options
+# Customize TV show/movie subtitle sync options
 
 Usage: bb movies sync [OPTIONS]
 

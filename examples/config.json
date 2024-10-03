@@ -4,5 +4,5 @@
   "protocol": "http",
   "apiKey": "<YOUR_API_KEY>",
   "port": "6767",
-  "baseUrl": "bazarr"
+  "baseUrl": ""
 }
