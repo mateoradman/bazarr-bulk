@@ -12,9 +12,9 @@ use crate::{actions::Action, connection::check_health, data_types::app_config::A
 #[command(author = "Mateo Radman <radmanmateo@gmail.com>")]
 #[command(about = "Performs bulk operations on subtitles of movies and tv shows using Bazarr's API", long_about = None)]
 pub struct Cli {
-    /// Path to the JSON configuration file
-    #[arg(required = true, short, long, value_name = "FILE")]
-    pub config: PathBuf,
+    /// Path to the JSON configuration file [default: ~/.config/bazarr-bulk.conf]
+    #[arg(short, long, value_name = "FILE")]
+    pub config: Option<PathBuf>,
 
     /// Number of times to retry the request in case of lost connection
     #[arg(short, long, default_value_t = 3)]
@@ -29,6 +29,19 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub fn get_config_path(&self) -> PathBuf {
+        match &self.config {
+            Some(path) => path.clone(),
+            None => {
+                let mut default_path = dirs::home_dir()
+                    .expect("Unable to find home directory");
+                default_path.push(".config");
+                default_path.push("bazarr-bulk.conf");
+                default_path
+            }
+        }
+    }
+
     pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         println!("Bazarr Bulk CLI v{}", env!("CARGO_PKG_VERSION"));
         self.command
@@ -121,6 +134,16 @@ pub enum ActionCommands {
     FixUppercase,
     /// Reverse RTL directioned subtitles
     ReverseRTL,
+    /// List IDs and names
+    ListIds,
+    /// Search by name
+    Search(SearchOptions),
+}
+
+#[derive(clap::Args, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SearchOptions {
+    /// Search term to look for in titles
+    pub query: String,
 }
 
 impl ToString for ActionCommands {
@@ -133,6 +156,8 @@ impl ToString for ActionCommands {
             ActionCommands::RemoveStyleTags => "remove_tags".to_string(),
             ActionCommands::FixUppercase => "fix_uppercase".to_string(),
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
+            ActionCommands::ListIds => "list_ids".to_string(),
+            ActionCommands::Search(_) => "search".to_string(),
         }
     }
 }

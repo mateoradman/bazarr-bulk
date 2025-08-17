@@ -46,3 +46,28 @@ impl Subtitle {
         self.path.is_some() && self.audio_language_item.code2.is_some()
     }
 }
+
+pub trait SearchableItem {
+    fn get_id(&self) -> u32;
+    fn get_title(&self) -> &str;
+}
+
+impl SearchableItem for Movie {
+    fn get_id(&self) -> u32 {
+        self.radarr_id
+    }
+
+    fn get_title(&self) -> &str {
+        &self.title
+    }
+}
+
+impl SearchableItem for TVShow {
+    fn get_id(&self) -> u32 {
+        self.sonarr_series_id
+    }
+
+    fn get_title(&self) -> &str {
+        &self.title
+    }
+}

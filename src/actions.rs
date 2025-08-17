@@ -9,7 +9,7 @@ use crate::{
     cli::ActionCommands,
     data_types::{
         request::ActionPayload,
-        response::{Episode, Movie, PaginatedResponse, TVShow},
+        response::{Episode, Movie, PaginatedResponse, TVShow, SearchableItem},
     },
 };
 
@@ -168,6 +168,11 @@ impl Action {
     }
 
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Handle special commands (list-ids, search)
+        if let Some(_) = self.handle_special_commands::<Movie>("movies", "movie(s)").await? {
+            return Ok(());
+        }
+
         self.pb.set_style(
             ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
                 .unwrap()
@@ -196,6 +201,11 @@ impl Action {
     }
 
     pub async fn tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Handle special commands (list-ids, search)
+        if let Some(_) = self.handle_special_commands::<TVShow>("series", "TV show(s)").await? {
+            return Ok(());
+        }
+
         let mp = MultiProgress::new();
         let pb_main = mp.add(self.pb.clone());
         pb_main.set_style(
@@ -247,5 +257,79 @@ impl Action {
             self.action.to_string(),
         ));
         Ok(())
+    }
+
+    async fn list_generic<T>(&self, endpoint: &str, context: &str) -> Result<(), Box<dyn std::error::Error>>
+    where
+        T: DeserializeOwned + Debug + SearchableItem,
+    {
+        println!("Fetching {} from Bazarr...\n", context);
+
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push(endpoint);
+
+        let response = self.get_all::<T>(url).await?;
+
+        if response.data.is_empty() {
+            println!("No {} found.", context);
+            return Ok(());
+        }
+
+        println!("{} ({} found):", context, response.data.len());
+        for item in response.data {
+            println!("{} - {}", item.get_id(), item.get_title());
+        }
+
+        Ok(())
+    }
+
+    async fn search_generic<T>(&self, endpoint: &str, context: &str, query: &str) -> Result<(), Box<dyn std::error::Error>>
+    where
+        T: DeserializeOwned + Debug,
+        T: SearchableItem,
+    {
+        println!("Searching for {} with term: '{}'\n", context, query);
+        
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push(endpoint);
+        
+        let response = self.get_all::<T>(url).await?;
+        
+        let query_lower = query.to_lowercase();
+        let mut found_results = Vec::new();
+        
+        for item in response.data {
+            if item.get_title().to_lowercase().contains(&query_lower) {
+                found_results.push((item.get_id(), item.get_title().to_string()));
+            }
+        }
+        
+        if found_results.is_empty() {
+            println!("{} {} not found", context, query);
+        } else {
+            println!("Found {} {}:", found_results.len(), context);
+            for (id, title) in found_results {
+                println!("{} - {}", id, title);
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn handle_special_commands<T>(&self, endpoint: &str, context: &str) -> Result<Option<()>, Box<dyn std::error::Error>>
+    where
+        T: DeserializeOwned + Debug + SearchableItem,
+    {
+        match &self.action {
+            ActionCommands::ListIds => {
+                self.list_generic::<T>(endpoint, context).await?;
+                Ok(Some(()))
+            }
+            ActionCommands::Search(search_options) => {
+                self.search_generic::<T>(endpoint, context, &search_options.query).await?;
+                Ok(Some(()))
+            }
+            _ => Ok(None),
+        }
     }
 }

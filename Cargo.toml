@@ -18,7 +18,8 @@ path = "src/main.rs"
 [dependencies]
 config = { version = "0.13.4", features = ["json"] }
 clap = { version = "4.5.2", features = ["derive"] }
-human-panic = "1.2.3"
+dirs = "5.0"
+human-panic = "2.0"
 indicatif = { version = "0.17.8", features = ["tokio"] }
 reqwest = { version = "0.11.25", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
