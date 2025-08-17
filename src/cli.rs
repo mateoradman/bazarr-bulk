@@ -12,9 +12,9 @@ use crate::{actions::Action, connection::check_health, data_types::app_config::A
 #[command(author = "Mateo Radman <radmanmateo@gmail.com>")]
 #[command(about = "Performs bulk operations on subtitles of movies and tv shows using Bazarr's API", long_about = None)]
 pub struct Cli {
-    /// Path to the JSON configuration file
-    #[arg(required = true, short, long, value_name = "FILE")]
-    pub config: PathBuf,
+    /// Path to the JSON configuration file [default: ~/.config/bazarr-bulk.conf]
+    #[arg(short, long, value_name = "FILE")]
+    pub config: Option<PathBuf>,
 
     /// Number of times to retry the request in case of lost connection
     #[arg(short, long, default_value_t = 3)]
@@ -29,6 +29,19 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub fn get_config_path(&self) -> PathBuf {
+        match &self.config {
+            Some(path) => path.clone(),
+            None => {
+                let mut default_path = dirs::home_dir()
+                    .expect("Unable to find home directory");
+                default_path.push(".config");
+                default_path.push("bazarr-bulk.conf");
+                default_path
+            }
+        }
+    }
+
     pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         println!("Bazarr Bulk CLI v{}", env!("CARGO_PKG_VERSION"));
         self.command

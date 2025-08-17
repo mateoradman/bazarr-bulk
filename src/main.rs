@@ -11,7 +11,8 @@ use data_types::app_config::AppConfig;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     human_panic::setup_panic!();
     let cli = Cli::parse();
-    let config = AppConfig::new(cli.config.to_str().unwrap())?;
+    let config_path = cli.get_config_path();
+    let config = AppConfig::new(config_path.to_str().unwrap())?;
     cli.run(config).await?;
     Ok(())
 }
