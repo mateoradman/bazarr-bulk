@@ -168,6 +168,11 @@ impl Action {
     }
 
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Check if it's a list-ids command
+        if matches!(self.action, ActionCommands::ListIds) {
+            return self.list_movies().await;
+        }
+
         self.pb.set_style(
             ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
                 .unwrap()
@@ -196,6 +201,11 @@ impl Action {
     }
 
     pub async fn tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Check if it's a list-ids command
+        if matches!(self.action, ActionCommands::ListIds) {
+            return self.list_tv_shows().await;
+        }
+
         let mp = MultiProgress::new();
         let pb_main = mp.add(self.pb.clone());
         pb_main.set_style(
@@ -246,6 +256,48 @@ impl Action {
             "Finished performing action {} on all tv shows",
             self.action.to_string(),
         ));
+        Ok(())
+    }
+
+    pub async fn list_movies(&self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Fetching movies from Bazarr...\n");
+
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("movies");
+
+        let response = self.get_all::<Movie>(url).await?;
+
+        if response.data.is_empty() {
+            println!("No movies found.");
+            return Ok(());
+        }
+
+        println!("Movies ({} found):", response.data.len());
+        for movie in response.data {
+            println!("{} - {}", movie.radarr_id, movie.title);
+        }
+
+        Ok(())
+    }
+
+    pub async fn list_tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Fetching TV shows from Bazarr...\n");
+
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("series");
+
+        let response = self.get_all::<TVShow>(url).await?;
+
+        if response.data.is_empty() {
+            println!("No TV shows found.");
+            return Ok(());
+        }
+
+        println!("TV Shows ({} found):", response.data.len());
+        for tv_show in response.data {
+            println!("{} - {}", tv_show.sonarr_series_id, tv_show.title);
+        }
+
         Ok(())
     }
 }

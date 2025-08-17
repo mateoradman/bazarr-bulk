@@ -134,6 +134,8 @@ pub enum ActionCommands {
     FixUppercase,
     /// Reverse RTL directioned subtitles
     ReverseRTL,
+    /// List IDs and names
+    ListIds,
 }
 
 impl ToString for ActionCommands {
@@ -146,6 +148,7 @@ impl ToString for ActionCommands {
             ActionCommands::RemoveStyleTags => "remove_tags".to_string(),
             ActionCommands::FixUppercase => "fix_uppercase".to_string(),
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
+            ActionCommands::ListIds => "list_ids".to_string(),
         }
     }
 }
