@@ -172,6 +172,11 @@ impl Action {
         if matches!(self.action, ActionCommands::ListIds) {
             return self.list_movies().await;
         }
+        
+        // Check if it's a search command
+        if let ActionCommands::Search(search_options) = &self.action {
+            return self.search_movies(&search_options.query).await;
+        }
 
         self.pb.set_style(
             ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
@@ -204,6 +209,11 @@ impl Action {
         // Check if it's a list-ids command
         if matches!(self.action, ActionCommands::ListIds) {
             return self.list_tv_shows().await;
+        }
+        
+        // Check if it's a search command
+        if let ActionCommands::Search(search_options) = &self.action {
+            return self.search_tv_shows(&search_options.query).await;
         }
 
         let mp = MultiProgress::new();
@@ -298,6 +308,64 @@ impl Action {
             println!("{} - {}", tv_show.sonarr_series_id, tv_show.title);
         }
 
+        Ok(())
+    }
+
+    pub async fn search_movies(&self, query: &str) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Searching for movies with term: '{}'\n", query);
+        
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("movies");
+        
+        let response = self.get_all::<Movie>(url).await?;
+        
+        let query_lower = query.to_lowercase();
+        let mut found_results = Vec::new();
+        
+        for movie in response.data {
+            if movie.title.to_lowercase().contains(&query_lower) {
+                found_results.push((movie.radarr_id, movie.title));
+            }
+        }
+        
+        if found_results.is_empty() {
+            println!("movies {} not found", query);
+        } else {
+            println!("Found {} movie(s):", found_results.len());
+            for (id, title) in found_results {
+                println!("{} - {}", id, title);
+            }
+        }
+        
+        Ok(())
+    }
+
+    pub async fn search_tv_shows(&self, query: &str) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Searching for TV shows with term: '{}'\n", query);
+        
+        let mut url = self.base_url.clone();
+        url.path_segments_mut().unwrap().push("series");
+        
+        let response = self.get_all::<TVShow>(url).await?;
+        
+        let query_lower = query.to_lowercase();
+        let mut found_results = Vec::new();
+        
+        for tv_show in response.data {
+            if tv_show.title.to_lowercase().contains(&query_lower) {
+                found_results.push((tv_show.sonarr_series_id, tv_show.title));
+            }
+        }
+        
+        if found_results.is_empty() {
+            println!("tv-shows {} not found", query);
+        } else {
+            println!("Found {} TV show(s):", found_results.len());
+            for (id, title) in found_results {
+                println!("{} - {}", id, title);
+            }
+        }
+        
         Ok(())
     }
 }

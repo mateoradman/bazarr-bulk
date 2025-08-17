@@ -136,6 +136,14 @@ pub enum ActionCommands {
     ReverseRTL,
     /// List IDs and names
     ListIds,
+    /// Search by name
+    Search(SearchOptions),
+}
+
+#[derive(clap::Args, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SearchOptions {
+    /// Search term to look for in titles
+    pub query: String,
 }
 
 impl ToString for ActionCommands {
@@ -149,6 +157,7 @@ impl ToString for ActionCommands {
             ActionCommands::FixUppercase => "fix_uppercase".to_string(),
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
             ActionCommands::ListIds => "list_ids".to_string(),
+            ActionCommands::Search(_) => "search".to_string(),
         }
     }
 }
