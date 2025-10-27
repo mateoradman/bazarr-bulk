@@ -57,7 +57,7 @@ impl Action {
         } else if self.limit.is_some() || self.offset > 0 {
             let length = match self.limit {
                 Some(val) => val,
-                None => std::u32::MAX,
+                None => u32::MAX,
             };
             url.query_pairs_mut()
                 .append_pair("length", &length.to_string())
@@ -80,7 +80,13 @@ impl Action {
             payload.no_fix_framerate = Some(sync_options.no_fix_framerate);
             payload.gss = Some(sync_options.gss);
         }
-        self.client.patch(url).json(&payload).send().await
+        let body = serde_json::to_vec(&payload).unwrap();
+        self.client
+            .patch(url)
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await
     }
 
     async fn process_episode_subtitle(&self, pb: &ProgressBar, episode: Episode) {
