@@ -230,6 +230,7 @@ impl Action {
             new_url.set_query(Some(&query_param));
             let response = self.get_all::<Episode>(new_url).await?;
             let num_episodes: u64 = response.data.len() as u64;
+            sub_pb.set_position(0);
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
                 sub_pb.finish_with_message("No episodes found");
