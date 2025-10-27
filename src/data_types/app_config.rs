@@ -58,7 +58,15 @@ impl AppConfig {
             .push(clean_base_url)
             .push("api");
 
-        println!("Bazarr API URL: {}", url);
+        let mut masked_url = url.clone();
+        if url.username() != "" {
+            masked_url.set_username("*****").unwrap();
+        }
+        if url.password().is_some() {
+            masked_url.set_password(Some("*****")).ok();
+        }
+
+        println!("Bazarr API URL: {}", masked_url);
         url
     }
 }
