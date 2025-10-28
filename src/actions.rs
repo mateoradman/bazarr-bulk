@@ -1,15 +1,21 @@
-use std::{borrow::Borrow, fmt::Debug, process::exit};
+use std::{borrow::Borrow, fmt::Debug, process::exit, sync::Arc};
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest::Url;
 use reqwest_middleware::ClientWithMiddleware;
+use rusqlite::Connection;
 use serde::de::DeserializeOwned;
+use tokio::sync::Mutex;
 
 use crate::{
     cli::ActionCommands,
     data_types::{
         request::ActionPayload,
         response::{Episode, Movie, PaginatedResponse, TVShow},
+    },
+    db::{
+        filter_unprocessed_episodes, filter_unprocessed_movies, mark_episode_subtitle_processed,
+        mark_movie_subtitle_processed,
     },
 };
 
@@ -20,11 +26,17 @@ pub struct Action {
     pub ids: Vec<u32>,
     pub offset: u32,
     pub limit: Option<u32>,
+    pub skip_processed: bool,
     pub pb: ProgressBar,
+    pub db_conn: Arc<Mutex<Connection>>,
 }
 
 impl Action {
-    pub fn new(client: ClientWithMiddleware, base_url: Url) -> Self {
+    pub fn new(
+        client: ClientWithMiddleware,
+        base_url: Url,
+        db_conn: Arc<Mutex<Connection>>,
+    ) -> Self {
         let pb = ProgressBar::new(0);
         Self {
             client,
@@ -32,8 +44,10 @@ impl Action {
             action: ActionCommands::OCRFixes,
             ids: Vec::new(),
             offset: 0,
+            skip_processed: false,
             limit: None,
             pb,
+            db_conn,
         }
     }
 
@@ -112,6 +126,13 @@ impl Action {
                             subtitle.audio_language_item.name,
                             episode.title,
                         ));
+                        let _ = mark_episode_subtitle_processed(
+                            self.db_conn.clone(),
+                            episode.sonarr_episode_id,
+                            episode.title.clone(),
+                            subtitle,
+                        )
+                        .await;
                     }
                     Err(err) => {
                         pb.set_message(format!(
@@ -153,6 +174,13 @@ impl Action {
                             subtitle.audio_language_item.name,
                             movie.title,
                         ));
+                        let _ = mark_movie_subtitle_processed(
+                            self.db_conn.clone(),
+                            movie.radarr_id,
+                            movie.title.clone(),
+                            subtitle,
+                        )
+                        .await;
                     }
                     Err(err) => {
                         self.pb.set_message(format!(
@@ -183,14 +211,22 @@ impl Action {
         url.path_segments_mut().unwrap().push("movies");
         url = self.limit_records(url, "radarrid[]").await;
         let response = self.get_all::<Movie>(url).await?;
-        let num_movies: u64 = response.data.len() as u64;
+        let mut movies = response.data;
+        if self.skip_processed {
+            let initial_len = movies.len();
+            movies = filter_unprocessed_movies(self.db_conn.clone(), movies).await?;
+            let after_len = movies.len();
+            let difference = initial_len - after_len;
+            println!("Skipped {difference} already processed movies...");
+        }
+        let num_movies: u64 = movies.len() as u64;
         if num_movies == 0 {
             self.pb.finish_with_message("No movies found");
             return Ok(());
         }
 
         self.pb.set_length(num_movies);
-        for movie in response.data {
+        for movie in movies {
             self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
         }
@@ -230,18 +266,31 @@ impl Action {
         );
         url.path_segments_mut().unwrap().pop().push("episodes");
         for series in response.data {
-            pb_main.set_message(format!("Processing tv show {}", series.title,));
+            pb_main.set_message(format!("Processing tv show {}", series.title));
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
             let mut new_url = url.clone();
             new_url.set_query(Some(&query_param));
             let response = self.get_all::<Episode>(new_url).await?;
-            let num_episodes: u64 = response.data.len() as u64;
+            let mut episodes = response.data;
+            if self.skip_processed {
+                println!("Processing {} episodes, checking for already processed ones...", episodes.len());
+                let initial_len = episodes.len();
+                episodes = filter_unprocessed_episodes(self.db_conn.clone(), episodes).await?;
+                let after_len = episodes.len();
+                let difference = initial_len - after_len;
+                if difference > 0 {
+                    pb_main.set_message(format!("Skipped {difference} already processed episodes..."));
+                } else {
+                    pb_main.set_message("No previously processed episodes");
+                }
+            }
+            let num_episodes: u64 = episodes.len() as u64;
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
                 sub_pb.finish_with_message("No episodes found");
                 continue;
             }
-            for episode in response.data {
+            for episode in episodes {
                 self.process_episode_subtitle(&sub_pb, episode).await;
                 sub_pb.inc(1);
             }
