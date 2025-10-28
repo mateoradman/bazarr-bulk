@@ -5,7 +5,9 @@ use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, time::Duration};
 
-use crate::{actions::Action, connection::check_health, data_types::app_config::AppConfig};
+use crate::{
+    actions::Action, connection::check_health, data_types::app_config::AppConfig, db::init_db,
+};
 
 #[derive(Parser)]
 #[command(name = "Bazarr Bulk Actions CLI")]
@@ -48,6 +50,10 @@ pub struct CommonArgs {
     /// Limit to N records (ignored if ids are specified) [default: unlimited]
     #[arg(long)]
     limit: Option<u32>,
+    /// Skip already processed as queried from the db.
+    /// Must have all subtitles processed to be skipped.
+    #[arg(long, default_value_t = false, required = false)]
+    skip_processed: bool,
     /// List available actions
     #[command(subcommand)]
     subcommand: ActionCommands,
@@ -84,14 +90,15 @@ impl Commands {
             .build();
         let url = config.construct_url();
         check_health(&client, &url).await;
-
-        let mut action = Action::new(client, url);
+        let db_conn = init_db().await?;
+        let mut action = Action::new(client, url, db_conn);
         match self {
             Commands::Movies(c) => {
                 action.action = c.subcommand;
                 action.ids = c.ids;
                 action.limit = c.limit;
                 action.offset = c.offset;
+                action.skip_processed = c.skip_processed;
                 action.movies().await
             }
             Commands::TVShows(c) => {
@@ -99,6 +106,7 @@ impl Commands {
                 action.ids = c.ids;
                 action.limit = c.limit;
                 action.offset = c.offset;
+                action.skip_processed = c.skip_processed;
                 action.tv_shows().await
             }
         }
@@ -136,6 +144,7 @@ impl ToString for ActionCommands {
         }
     }
 }
+
 #[derive(clap::Args, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SyncOptions {
     /// Reference for sync from video file track number (a:0), subtitle (s:0), or some subtitles file path

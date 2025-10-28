@@ -1,6 +1,12 @@
 # BAZARR BULK CLI
 
-A CLI tool for performing actions in bulk on Bazarr movies and TV shows.  
+A CLI tool for performing actions in bulk on Bazarr movies and TV shows. The tool maintains a local database to track processed subtitles, allowing you to skip previously processed items using the `--skip-processed` flag.
+
+SQLite database locations on the host machine:
+- Linux: `~/.local/share/bazarr-bulk/database.db`
+- Windows: `C:\Users\<username>\AppData\Local\mateoradman\bazarr-bulk\database.db`
+- macOS: `~/Library/Application Support/com.mateoradman.bazarr-bulk/database.db`
+
 List of supported actions:
 
 - sync
@@ -164,6 +170,7 @@ Options:
       --ids <IDS>        Filter records by Sonarr/Radarr ID (comma-separated)
       --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
       --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
+      --skip-processed   Skip previously processed items (uses local database to track processed subtitles)
   -h, --help             Print help
 ```
 
@@ -189,6 +196,7 @@ Options:
       --ids <IDS>        Filter records by Sonarr/Radarr ID (comma-separated)
       --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
       --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
+      --skip-processed   Skip previously processed items (uses local database to track processed subtitles)
   -h, --help             Print help
 ```
 
