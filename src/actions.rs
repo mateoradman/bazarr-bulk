@@ -285,6 +285,7 @@ impl Action {
                 }
             }
             let num_episodes: u64 = episodes.len() as u64;
+            sub_pb.set_position(0);
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
                 sub_pb.finish_with_message("No episodes found");
