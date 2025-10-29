@@ -36,5 +36,3 @@ jobs:
 
       - name: Run tests
         run: cargo test --verbose
-
-    steps:
