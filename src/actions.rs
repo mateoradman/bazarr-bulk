@@ -273,13 +273,18 @@ impl Action {
             let response = self.get_all::<Episode>(new_url).await?;
             let mut episodes = response.data;
             if self.skip_processed {
-                println!("Processing {} episodes, checking for already processed ones...", episodes.len());
+                println!(
+                    "Processing {} episodes, checking for already processed ones...",
+                    episodes.len()
+                );
                 let initial_len = episodes.len();
                 episodes = filter_unprocessed_episodes(self.db_conn.clone(), episodes).await?;
                 let after_len = episodes.len();
                 let difference = initial_len - after_len;
                 if difference > 0 {
-                    pb_main.set_message(format!("Skipped {difference} already processed episodes..."));
+                    pb_main.set_message(format!(
+                        "Skipped {difference} already processed episodes..."
+                    ));
                 } else {
                     pb_main.set_message("No previously processed episodes");
                 }
