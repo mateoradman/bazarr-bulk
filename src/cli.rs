@@ -131,18 +131,18 @@ pub enum ActionCommands {
     ReverseRTL,
 }
 
-impl std::fmt::Display for ActionCommands {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            ActionCommands::Sync(_) => "sync",
-            ActionCommands::OCRFixes => "OCR_fixes",
-            ActionCommands::CommonFixes => "common",
-            ActionCommands::RemoveHearingImpaired => "remove_HI",
-            ActionCommands::RemoveStyleTags => "remove_tags",
-            ActionCommands::FixUppercase => "fix_uppercase",
-            ActionCommands::ReverseRTL => "reverse_rtl",
-        };
-        write!(f, "{}", s)
+#[allow(clippy::to_string_trait_impl)]
+impl ToString for ActionCommands {
+    fn to_string(&self) -> String {
+        match self {
+            ActionCommands::Sync(_) => "sync".to_string(),
+            ActionCommands::OCRFixes => "OCR_fixes".to_string(),
+            ActionCommands::CommonFixes => "common".to_string(),
+            ActionCommands::RemoveHearingImpaired => "remove_HI".to_string(),
+            ActionCommands::RemoveStyleTags => "remove_tags".to_string(),
+            ActionCommands::FixUppercase => "fix_uppercase".to_string(),
+            ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
+        }
     }
 }
 
