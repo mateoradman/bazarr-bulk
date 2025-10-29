@@ -67,13 +67,16 @@ jobs:
           fi
           cd ../../..
 
-      - name: Generate SHA-256
+      - name: Generate SHA-256 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            certutil -hashfile ${{ matrix.archive_name }} SHA256 > ${{ matrix.archive_name }}.sha256
-          else
-            shasum -a 256 ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
-          fi
+          $hash = (Get-FileHash ${{ matrix.archive_name }} -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.archive_name }}" | Out-File -Encoding utf8 ${{ matrix.archive_name }}.sha256
+
+      - name: Generate SHA-256 (Unix)
+        if: runner.os != 'Windows'
+        run: shasum -a 256 ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
 
       - name: Upload to release
         uses: softprops/action-gh-release@v1
