@@ -1,38 +1,83 @@
-name: Release Workflow - Bazarr Bulk
+name: Release
 
 on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+  build-and-release:
+    name: Release ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-pc-windows-gnu
-            archive: zip
-          - target: x86_64-unknown-linux-musl
-            archive: tar.gz
-          - target: x86_64-apple-darwin
-            archive: zip
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: bb.exe
+            archive_name: bazarr-bulk-windows-x86_64.zip
+            archive_type: zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary_name: bb
+            archive_name: bazarr-bulk-linux-x86_64.tar.gz
+            archive_type: tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: bb
+            archive_name: bazarr-bulk-macos-x86_64.zip
+            archive_type: zip
+
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        id: compile
-        uses: rust-build/rust-build.action@v1.4.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../${{ matrix.archive_name }} ${{ matrix.binary_name }}
+          cd ../../..
+
+      - name: Create archive (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          if [ "${{ matrix.archive_type }}" = "zip" ]; then
+            zip ../../../${{ matrix.archive_name }} ${{ matrix.binary_name }}
+          else
+            tar czf ../../../${{ matrix.archive_name }} ${{ matrix.binary_name }}
+          fi
+          cd ../../..
+
+      - name: Generate SHA-256
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            certutil -hashfile ${{ matrix.archive_name }} SHA256 > ${{ matrix.archive_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
+          fi
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v1
         with:
-          name: Binary
-          path: |
-            ${{ steps.compile.outputs.BUILT_ARCHIVE }}
-            ${{ steps.compile.outputs.BUILT_CHECKSUM }}
+          files: |
+            ${{ matrix.archive_name }}
+            ${{ matrix.archive_name }}.sha256

@@ -38,7 +38,7 @@ Download, extract and move the binary to the desired directory, and set executio
 2. Extract the archive
 
 ```sh
-tar xf bazarr-bulk_*_x86_64-unknown-linux-musl.tar.gz
+tar xf bazarr-bulk-linux-x86_64.tar.gz
 ```
 
 3. Move the binary
@@ -65,7 +65,7 @@ bb --help
 2. Extract the archive
 
 ```sh
-unzip bazarr-bulk_*_x86_64-apple-darwin.zip
+unzip bazarr-bulk-macos-x86_64.zip
 ```
 
 3. Move the binary
