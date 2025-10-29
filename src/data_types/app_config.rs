@@ -4,6 +4,17 @@ use config::{Config, ConfigError, File, FileFormat};
 use reqwest::Url;
 use serde::Deserialize;
 
+fn mask_credentials(url: &Url) -> Url {
+    let mut masked = url.clone();
+    if !url.username().is_empty() {
+        masked.set_username("*****").unwrap();
+    }
+    if url.password().is_some() {
+        masked.set_password(Some("*****")).ok();
+    }
+    masked
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
@@ -58,15 +69,9 @@ impl AppConfig {
             .push(clean_base_url)
             .push("api");
 
-        let mut masked_url = url.clone();
-        if url.username() != "" {
-            masked_url.set_username("*****").unwrap();
-        }
-        if url.password().is_some() {
-            masked_url.set_password(Some("*****")).ok();
-        }
-
+        let masked_url = mask_credentials(&url);
         println!("Bazarr API URL: {}", masked_url);
+
         url
     }
 }
