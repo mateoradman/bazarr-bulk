@@ -200,6 +200,7 @@ Options:
       --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
       --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
       --skip-processed   Skip previously processed items (uses local database to track processed subtitles)
+  -l, --language <LANGUAGE>  Filter subtitles by language code (e.g., en, es, fr)
   -h, --help             Print help
 ```
 
@@ -226,6 +227,7 @@ Options:
       --offset <OFFSET>  Skip N records (ignored if ids are specified) [default: skip none] [default: 0]
       --limit <LIMIT>    Limit to N records (ignored if ids are specified) [default: unlimited]
       --skip-processed   Skip previously processed items (uses local database to track processed subtitles)
+  -l, --language <LANGUAGE>  Filter subtitles by language code (e.g., en, es, fr)
   -h, --help             Print help
 ```
 
@@ -244,3 +246,30 @@ Options:
   -g                   Use Golden-Section search [default: false]
   -h, --help           Print help
 ```
+
+## Usage Examples
+
+### Sync all English subtitles for movies
+
+```bash
+bb --config config.json movies --language en sync
+```
+
+### Perform OCR fixes only on Spanish subtitles for TV shows
+
+```bash
+bb --config config.json tv-shows --language es ocr-fixes
+```
+
+### Sync specific movies by ID with language filter
+
+```bash
+bb --config config.json movies --ids 123,456,789 --language en sync
+```
+
+### Remove hearing impaired tags from French subtitles with skip-processed
+
+```bash
+bb --config config.json movies --language fr --skip-processed remove-hearing-impaired
+```
+
