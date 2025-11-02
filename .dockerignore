@@ -1,0 +1,10 @@
+target/
+.git/
+.github/
+*.md
+examples/
+.gitignore
+flake.nix
+LICENSE
+docker-compose.yml
+.dockerignore

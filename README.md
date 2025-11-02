@@ -2,10 +2,18 @@
 
 A CLI tool for performing actions in bulk on Bazarr movies and TV shows. The tool maintains a local database to track processed subtitles, allowing you to skip previously processed items using the `--skip-processed` flag.
 
-SQLite database locations on the host machine:
-- Linux: `~/.local/share/bazarr-bulk/database.db`
-- Windows: `C:\Users\<username>\AppData\Local\mateoradman\bazarr-bulk\database.db`
-- macOS: `~/Library/Application Support/com.mateoradman.bazarr-bulk/database.db`
+## Database Storage
+
+The SQLite database location can be configured in three ways (in order of priority):
+
+1. **CLI argument**: `--db-path /path/to/database.db`
+2. **Environment variable**: `BB_DATA_DIR=/path/to/directory` (database will be created as `database.db` in this directory)
+3. **Default locations** (when none specified):
+   - Linux: `~/.local/share/bazarr-bulk/database.db`
+   - Windows: `C:\Users\<username>\AppData\Local\mateoradman\bazarr-bulk\database.db`
+   - macOS: `~/Library/Application Support/com.mateoradman.bazarr-bulk/database.db`
+
+For Docker usage, the database is automatically stored in `/data` volume (see [DOCKER.md](./DOCKER.md)).
 
 List of supported actions:
 
@@ -17,6 +25,24 @@ List of supported actions:
 - reverse-rtl
 
 ## Installation
+
+### Docker (Recommended)
+
+The easiest way to run bazarr-bulk is using Docker:
+
+```sh
+# Pull the latest image
+docker pull ghcr.io/mateoradman/bazarr-bulk:latest
+
+# Run with your config
+docker run --rm \
+  -v "$(pwd)/config.json:/config/config.json:ro" \
+  -v bazarr-bulk-data:/data \
+  ghcr.io/mateoradman/bazarr-bulk:latest \
+  --config /config/config.json movies sync
+```
+
+Or use Docker Compose for easier management. See [DOCKER.md](./DOCKER.md) for detailed Docker usage instructions.
 
 ### Install with cargo
 
@@ -136,7 +162,7 @@ The [configuration file](./examples/config.json) contains various fields to set 
 bb --help
 # Performs bulk operations on subtitles of movies and TV shows using Bazarr's API
 
-Usage: bb --config <FILE> <COMMAND>
+Usage: bb --config <FILE> [OPTIONS] <COMMAND>
 
 Commands:
   movies    Perform operations on movies
@@ -144,8 +170,11 @@ Commands:
   help      Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config <FILE>  Path to the JSON configuration file
-  -h, --help           Print help
+  -c, --config <FILE>     Path to the JSON configuration file [required]
+      --db-path <FILE>    Path to the SQLite database file (overrides BB_DATA_DIR)
+  -m, --max-retries <N>   Number of times to retry requests [default: 3]
+  -r, --retry-interval <N> Retry interval in seconds [default: 10]
+  -h, --help              Print help
 ```
 
 ### Movies

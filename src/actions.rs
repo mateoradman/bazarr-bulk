@@ -29,6 +29,7 @@ pub struct Action {
     pub skip_processed: bool,
     pub pb: ProgressBar,
     pub db_conn: Arc<Mutex<Connection>>,
+    pub is_tty: bool,
 }
 
 impl Action {
@@ -37,7 +38,13 @@ impl Action {
         base_url: Url,
         db_conn: Arc<Mutex<Connection>>,
     ) -> Self {
-        let pb = ProgressBar::new(0);
+        let is_tty = atty::is(atty::Stream::Stdout);
+        let pb = if is_tty {
+            ProgressBar::new(0)
+        } else {
+            // For non-TTY environments, hide the progress bar
+            ProgressBar::hidden()
+        };
         Self {
             client,
             base_url,
@@ -48,6 +55,37 @@ impl Action {
             limit: None,
             pb,
             db_conn,
+            is_tty,
+        }
+    }
+
+    /// set message on progress bar or print to stdout based on TTY
+    fn log_info(&self, pb: &ProgressBar, msg: impl Into<String>) {
+        let message = msg.into();
+        if self.is_tty {
+            pb.set_message(message);
+        } else {
+            println!("{}", message);
+        }
+    }
+
+    /// set error message on progress bar or print to stderr based on TTY
+    fn log_error(&self, pb: &ProgressBar, msg: impl Into<String>) {
+        let message = msg.into();
+        if self.is_tty {
+            pb.set_message(message);
+        } else {
+            eprintln!("{}", message);
+        }
+    }
+
+    /// finish progress bar with message or print to stdout based on TTY
+    fn finish(&self, pb: &ProgressBar, msg: impl Into<String>) {
+        let message = msg.into();
+        if self.is_tty {
+            pb.finish_with_message(message);
+        } else {
+            println!("{}", message);
         }
     }
 
@@ -109,23 +147,25 @@ impl Action {
                 continue;
             }
 
-            pb.set_message(format!(
+            let msg = format!(
                 "Performing action {} on {} subtitle of episode {}",
                 self.action.to_string(),
                 subtitle.audio_language_item.name,
                 episode.title,
-            ));
+            );
+            self.log_info(pb, msg);
 
             let payload = ActionPayload::new(episode.sonarr_episode_id, "episode", &subtitle);
             match self.perform(payload).await {
                 Ok(res) => match res.error_for_status() {
                     Ok(_) => {
-                        pb.set_message(format!(
+                        let msg = format!(
                             "Successfully performed action {} on {} subtitle of episode {}",
                             self.action.to_string(),
                             subtitle.audio_language_item.name,
                             episode.title,
-                        ));
+                        );
+                        self.log_info(pb, msg);
                         let _ = mark_episode_subtitle_processed(
                             self.db_conn.clone(),
                             episode.sonarr_episode_id,
@@ -135,18 +175,19 @@ impl Action {
                         .await;
                     }
                     Err(err) => {
-                        pb.set_message(format!(
+                        let msg = format!(
                             "Error performing action {} on {} subtitle of episode {}: {}",
                             self.action.to_string(),
                             subtitle.audio_language_item.name,
                             episode.title,
                             err,
-                        ));
+                        );
+                        self.log_error(pb, msg);
                     }
                 },
                 Err(err) => {
-                    self.pb
-                        .set_message(format!("Error connecting to Bazarr: {}", err));
+                    let msg = format!("Error connecting to Bazarr: {}", err);
+                    self.log_error(&self.pb, msg);
                     exit(1);
                 }
             }
@@ -158,22 +199,26 @@ impl Action {
             if !subtitle.is_valid() {
                 continue;
             }
-            self.pb.set_message(format!(
+            
+            let msg = format!(
                 "Performing action {} on {} subtitle of movie {}",
                 self.action.to_string(),
                 subtitle.audio_language_item.name,
                 movie.title,
-            ));
+            );
+            self.log_info(&self.pb, msg);
+            
             let payload = ActionPayload::new(movie.radarr_id, "movie", &subtitle);
             match self.perform(payload).await {
                 Ok(res) => match res.error_for_status() {
                     Ok(_) => {
-                        self.pb.set_message(format!(
+                        let msg = format!(
                             "Successfully performed action {} on {} subtitle of movie {}",
                             self.action.to_string(),
                             subtitle.audio_language_item.name,
                             movie.title,
-                        ));
+                        );
+                        self.log_info(&self.pb, msg);
                         let _ = mark_movie_subtitle_processed(
                             self.db_conn.clone(),
                             movie.radarr_id,
@@ -183,18 +228,19 @@ impl Action {
                         .await;
                     }
                     Err(err) => {
-                        self.pb.set_message(format!(
+                        let msg = format!(
                             "Error performing action {} on {} subtitle of episode {}: {}",
                             self.action.to_string(),
                             subtitle.audio_language_item.name,
                             movie.title,
                             err,
-                        ));
+                        );
+                        self.log_error(&self.pb, msg);
                     }
                 },
                 Err(err) => {
-                    self.pb
-                        .set_message(format!("Error connecting to Bazarr: {}", err));
+                    let msg = format!("Error connecting to Bazarr: {}", err);
+                    self.log_error(&self.pb, msg);
                     exit(1);
                 }
             }
@@ -202,11 +248,14 @@ impl Action {
     }
 
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
-        self.pb.set_style(
-            ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
-                .unwrap()
-                .progress_chars("##-"),
-        );
+        if self.is_tty {
+            self.pb.set_style(
+                ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
+            );
+        }
+        
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
         url = self.limit_records(url, "radarrid[]").await;
@@ -221,52 +270,83 @@ impl Action {
         }
         let num_movies: u64 = movies.len() as u64;
         if num_movies == 0 {
-            self.pb.finish_with_message("No movies found");
+            self.finish(&self.pb, "No movies found");
             return Ok(());
         }
 
+        if !self.is_tty {
+            println!("Processing {} movies...", num_movies);
+        }
+        
         self.pb.set_length(num_movies);
-        for movie in movies {
+        for (idx, movie) in movies.into_iter().enumerate() {
+            if !self.is_tty {
+                println!("Processing movie {}/{}", idx + 1, num_movies);
+            }
             self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
         }
-        self.pb.finish_with_message(format!(
-            "Finished performing action {} on all movies",
-            self.action.to_string(),
-        ));
+        
+        self.finish(
+            &self.pb,
+            format!(
+                "Finished performing action {} on all movies",
+                self.action.to_string(),
+            ),
+        );
         Ok(())
     }
 
     pub async fn tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mp = MultiProgress::new();
         let pb_main = mp.add(self.pb.clone());
-        pb_main.set_style(
-            ProgressStyle::with_template(
-                "[{bar:60.green/yellow}] {pos:>7}/{len:7} TV Shows\n{msg}",
-            )
-            .unwrap()
-            .progress_chars("##-"),
-        );
+        
+        if self.is_tty {
+            pb_main.set_style(
+                ProgressStyle::with_template(
+                    "[{bar:60.green/yellow}] {pos:>7}/{len:7} TV Shows\n{msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
+            );
+        }
+        
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("series");
         url = self.limit_records(url, "seriesid[]").await;
         let response = self.get_all::<TVShow>(url.clone()).await?;
         let num_series: u64 = response.data.len() as u64;
         if num_series == 0 {
-            pb_main.finish_with_message("No tv shows found");
+            self.finish(&pb_main, "No tv shows found");
             return Ok(());
         }
 
+        if !self.is_tty {
+            println!("Processing {} TV shows...", num_series);
+        }
+
         pb_main.set_length(num_series);
-        let sub_pb = mp.insert_after(&pb_main, ProgressBar::new(0));
-        sub_pb.set_style(
-            ProgressStyle::with_template("[{bar:60.cyan/blue}] {pos:>7}/{len:7} Episodes\n{msg}")
-                .unwrap()
-                .progress_chars("##-"),
-        );
+        let sub_pb = if self.is_tty {
+            let pb = mp.insert_after(&pb_main, ProgressBar::new(0));
+            pb.set_style(
+                ProgressStyle::with_template("[{bar:60.cyan/blue}] {pos:>7}/{len:7} Episodes\n{msg}")
+                    .unwrap()
+                    .progress_chars("##-"),
+            );
+            pb
+        } else {
+            ProgressBar::hidden()
+        };
+        
         url.path_segments_mut().unwrap().pop().push("episodes");
-        for series in response.data {
-            pb_main.set_message(format!("Processing tv show {}", series.title));
+        for (series_idx, series) in response.data.into_iter().enumerate() {
+            let msg = format!("Processing tv show {}", series.title);
+            if self.is_tty {
+                pb_main.set_message(msg.clone());
+            } else {
+                println!("TV Show {}/{}: {}", series_idx + 1, num_series, msg);
+            }
+            
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
             let mut new_url = url.clone();
             new_url.set_query(Some(&query_param));
@@ -282,31 +362,42 @@ impl Action {
                 let after_len = episodes.len();
                 let difference = initial_len - after_len;
                 if difference > 0 {
-                    pb_main.set_message(format!(
-                        "Skipped {difference} already processed episodes..."
-                    ));
+                    self.log_info(&pb_main, format!("Skipped {difference} already processed episodes..."));
                 } else {
-                    pb_main.set_message("No previously processed episodes");
+                    self.log_info(&pb_main, "No previously processed episodes");
                 }
             }
             let num_episodes: u64 = episodes.len() as u64;
             sub_pb.set_position(0);
             sub_pb.set_length(num_episodes);
             if num_episodes == 0 {
-                sub_pb.finish_with_message("No episodes found");
+                self.finish(&sub_pb, "No episodes found");
                 continue;
             }
-            for episode in episodes {
+            
+            if !self.is_tty {
+                println!("  Processing {} episodes...", num_episodes);
+            }
+            
+            for (ep_idx, episode) in episodes.into_iter().enumerate() {
+                if !self.is_tty {
+                    println!("    Episode {}/{}", ep_idx + 1, num_episodes);
+                }
                 self.process_episode_subtitle(&sub_pb, episode).await;
                 sub_pb.inc(1);
             }
             pb_main.inc(1);
-            pb_main.set_message(format!("Finished processing tv show {}", series.title,));
+            
+            self.log_info(&pb_main, format!("Finished processing tv show {}", series.title));
         }
-        pb_main.finish_with_message(format!(
-            "Finished performing action {} on all tv shows",
-            self.action.to_string(),
-        ));
+        
+        self.finish(
+            &pb_main,
+            format!(
+                "Finished performing action {} on all tv shows",
+                self.action.to_string(),
+            ),
+        );
         Ok(())
     }
 }
