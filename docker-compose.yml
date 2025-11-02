@@ -1,0 +1,22 @@
+services:
+  bazarr-bulk:
+    # build: .
+    image: ghcr.io/mateoradman/bazarr-bulk:latest
+    container_name: bazarr-bulk
+    volumes:
+      # Mount your config file
+      - ./examples/config.json:/config/config.json:ro
+      # Mount data directory for persistent database storage
+      - bazarr-bulk-data:/data
+    environment:
+      # Database will be stored in /data by default
+      - BB_DATA_DIR=/data
+    # Override command to run your desired action
+    # Example: movies with sync action
+    command: ["--config", "/config/config.json", "tv-shows", "sync"]
+    network_mode: "host"
+
+volumes:
+  bazarr-bulk-data:
+    driver: local
+

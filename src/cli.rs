@@ -18,6 +18,11 @@ pub struct Cli {
     #[arg(required = true, short, long, value_name = "FILE")]
     pub config: PathBuf,
 
+    /// Path to the SQLite database file
+    /// If not specified, uses BB_DATA_DIR environment variable or default user data directory
+    #[arg(long, value_name = "FILE")]
+    pub db_path: Option<PathBuf>,
+
     /// Number of times to retry the request in case of lost connection
     #[arg(short, long, default_value_t = 3)]
     pub max_retries: u32,
@@ -34,7 +39,7 @@ impl Cli {
     pub async fn run(self, config: AppConfig) -> Result<(), Box<dyn std::error::Error>> {
         println!("Bazarr Bulk CLI v{}", env!("CARGO_PKG_VERSION"));
         self.command
-            .run(config, self.max_retries, self.retry_interval)
+            .run(config, self.max_retries, self.retry_interval, self.db_path)
             .await
     }
 }
@@ -73,6 +78,7 @@ impl Commands {
         config: AppConfig,
         max_retries: u32,
         retry_interval: u64,
+        db_path: Option<PathBuf>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -90,7 +96,7 @@ impl Commands {
             .build();
         let url = config.construct_url();
         check_health(&client, &url).await;
-        let db_conn = init_db().await?;
+        let db_conn = init_db(db_path).await?;
         let mut action = Action::new(client, url, db_conn);
         match self {
             Commands::Movies(c) => {

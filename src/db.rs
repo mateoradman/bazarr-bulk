@@ -5,7 +5,28 @@ use tokio::sync::Mutex;
 
 use crate::data_types::response::{Episode, Movie, Subtitle};
 
-fn get_db_path() -> std::result::Result<PathBuf, String> {
+fn get_db_path(custom_path: Option<PathBuf>) -> std::result::Result<PathBuf, String> {
+    // Priority: 1. CLI argument, 2. Environment variable, 3. Default user data directory
+    if let Some(path) = custom_path {
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create database directory: {}", e))?;
+        }
+        return Ok(path);
+    }
+
+    // Check BB_DATA_DIR environment variable
+    if let Ok(data_dir) = std::env::var("BB_DATA_DIR") {
+        let db_path = PathBuf::from(data_dir).join("database.db");
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create database directory: {}", e))?;
+        }
+        return Ok(db_path);
+    }
+
+    // Fallback to default user data directory
     ProjectDirs::from("com", "mateoradman", "bazarr-bulk")
         .and_then(|proj_dirs| {
             let data_dir = proj_dirs.data_local_dir();
@@ -15,8 +36,10 @@ fn get_db_path() -> std::result::Result<PathBuf, String> {
         .ok_or_else(|| "Failed to obtain a default database path".to_string())
 }
 
-pub async fn init_db() -> Result<Arc<Mutex<Connection>>> {
-    let db_path = get_db_path().map_err(|e| rusqlite::Error::InvalidPath(e.into()))?;
+pub async fn init_db(custom_path: Option<PathBuf>) -> Result<Arc<Mutex<Connection>>> {
+    let db_path = get_db_path(custom_path).map_err(|e| rusqlite::Error::InvalidPath(e.into()))?;
+
+    println!("Using database at: {}", db_path.display());
 
     let conn = tokio::task::spawn_blocking(move || {
         let mut conn = Connection::open(db_path)?;
