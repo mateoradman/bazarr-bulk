@@ -27,6 +27,7 @@ pub struct Action {
     pub offset: u32,
     pub limit: Option<u32>,
     pub skip_processed: bool,
+    pub language_code: Option<String>,
     pub pb: ProgressBar,
     pub db_conn: Arc<Mutex<Connection>>,
     pub is_tty: bool,
@@ -52,6 +53,7 @@ impl Action {
             ids: Vec::new(),
             offset: 0,
             skip_processed: false,
+            language_code: None,
             limit: None,
             pb,
             db_conn,
@@ -86,6 +88,15 @@ impl Action {
             pb.finish_with_message(message);
         } else {
             println!("{}", message);
+        }
+    }
+
+    /// Check if subtitle matches the language filter (if specified)
+    fn matches_language_filter(&self, subtitle_code: Option<&String>) -> bool {
+        match (&self.language_code, subtitle_code) {
+            (Some(lang_code), Some(subtitle_code)) => lang_code == subtitle_code,
+            (Some(_), None) => false,
+            (None, _) => true,
         }
     }
 
@@ -147,6 +158,10 @@ impl Action {
                 continue;
             }
 
+            if !self.matches_language_filter(subtitle.audio_language_item.code2.as_ref()) {
+                continue;
+            }
+
             let msg = format!(
                 "Performing action {} on {} subtitle of episode {}",
                 self.action.to_string(),
@@ -197,6 +212,10 @@ impl Action {
     async fn process_movie_subtitle(&self, movie: Movie) {
         for subtitle in movie.subtitles {
             if !subtitle.is_valid() {
+                continue;
+            }
+
+            if !self.matches_language_filter(subtitle.audio_language_item.code2.as_ref()) {
                 continue;
             }
 

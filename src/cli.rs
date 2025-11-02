@@ -59,6 +59,9 @@ pub struct CommonArgs {
     /// Must have all subtitles processed to be skipped.
     #[arg(long, default_value_t = false, required = false)]
     skip_processed: bool,
+    /// Filter subtitles by language code (e.g., en, es, fr)
+    #[arg(long, short = 'l')]
+    language: Option<String>,
     /// List available actions
     #[command(subcommand)]
     subcommand: ActionCommands,
@@ -105,6 +108,7 @@ impl Commands {
                 action.limit = c.limit;
                 action.offset = c.offset;
                 action.skip_processed = c.skip_processed;
+                action.language_code = c.language;
                 action.movies().await
             }
             Commands::TVShows(c) => {
@@ -113,6 +117,7 @@ impl Commands {
                 action.limit = c.limit;
                 action.offset = c.offset;
                 action.skip_processed = c.skip_processed;
+                action.language_code = c.language;
                 action.tv_shows().await
             }
         }
