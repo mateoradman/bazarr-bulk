@@ -32,4 +32,3 @@ reqwest-tracing = "0.5.8"
 reqwest-middleware = "0.4.2"
 directories = "6.0.0"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
-atty = "0.2"

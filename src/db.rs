@@ -38,7 +38,7 @@ fn get_db_path(custom_path: Option<PathBuf>) -> std::result::Result<PathBuf, Str
 
 pub async fn init_db(custom_path: Option<PathBuf>) -> Result<Arc<Mutex<Connection>>> {
     let db_path = get_db_path(custom_path).map_err(|e| rusqlite::Error::InvalidPath(e.into()))?;
-    
+
     println!("Using database at: {}", db_path.display());
 
     let conn = tokio::task::spawn_blocking(move || {

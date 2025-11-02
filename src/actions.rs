@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Debug, process::exit, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, io::IsTerminal, process::exit, sync::Arc};
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use reqwest::Url;
@@ -38,7 +38,7 @@ impl Action {
         base_url: Url,
         db_conn: Arc<Mutex<Connection>>,
     ) -> Self {
-        let is_tty = atty::is(atty::Stream::Stdout);
+        let is_tty = std::io::stdout().is_terminal();
         let pb = if is_tty {
             ProgressBar::new(0)
         } else {
@@ -199,7 +199,7 @@ impl Action {
             if !subtitle.is_valid() {
                 continue;
             }
-            
+
             let msg = format!(
                 "Performing action {} on {} subtitle of movie {}",
                 self.action.to_string(),
@@ -207,7 +207,7 @@ impl Action {
                 movie.title,
             );
             self.log_info(&self.pb, msg);
-            
+
             let payload = ActionPayload::new(movie.radarr_id, "movie", &subtitle);
             match self.perform(payload).await {
                 Ok(res) => match res.error_for_status() {
@@ -250,12 +250,14 @@ impl Action {
     pub async fn movies(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_tty {
             self.pb.set_style(
-                ProgressStyle::with_template("[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}")
-                    .unwrap()
-                    .progress_chars("##-"),
+                ProgressStyle::with_template(
+                    "[{bar:60.green/yellow}] {pos:>7}/{len:7} Movies\n{msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
             );
         }
-        
+
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("movies");
         url = self.limit_records(url, "radarrid[]").await;
@@ -277,7 +279,7 @@ impl Action {
         if !self.is_tty {
             println!("Processing {} movies...", num_movies);
         }
-        
+
         self.pb.set_length(num_movies);
         for (idx, movie) in movies.into_iter().enumerate() {
             if !self.is_tty {
@@ -286,7 +288,7 @@ impl Action {
             self.process_movie_subtitle(movie).await;
             self.pb.inc(1);
         }
-        
+
         self.finish(
             &self.pb,
             format!(
@@ -300,7 +302,7 @@ impl Action {
     pub async fn tv_shows(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mp = MultiProgress::new();
         let pb_main = mp.add(self.pb.clone());
-        
+
         if self.is_tty {
             pb_main.set_style(
                 ProgressStyle::with_template(
@@ -310,7 +312,7 @@ impl Action {
                 .progress_chars("##-"),
             );
         }
-        
+
         let mut url = self.base_url.clone();
         url.path_segments_mut().unwrap().push("series");
         url = self.limit_records(url, "seriesid[]").await;
@@ -329,15 +331,17 @@ impl Action {
         let sub_pb = if self.is_tty {
             let pb = mp.insert_after(&pb_main, ProgressBar::new(0));
             pb.set_style(
-                ProgressStyle::with_template("[{bar:60.cyan/blue}] {pos:>7}/{len:7} Episodes\n{msg}")
-                    .unwrap()
-                    .progress_chars("##-"),
+                ProgressStyle::with_template(
+                    "[{bar:60.cyan/blue}] {pos:>7}/{len:7} Episodes\n{msg}",
+                )
+                .unwrap()
+                .progress_chars("##-"),
             );
             pb
         } else {
             ProgressBar::hidden()
         };
-        
+
         url.path_segments_mut().unwrap().pop().push("episodes");
         for (series_idx, series) in response.data.into_iter().enumerate() {
             let msg = format!("Processing tv show {}", series.title);
@@ -346,7 +350,7 @@ impl Action {
             } else {
                 println!("TV Show {}/{}: {}", series_idx + 1, num_series, msg);
             }
-            
+
             let query_param = format!("seriesid[]={}", series.sonarr_series_id);
             let mut new_url = url.clone();
             new_url.set_query(Some(&query_param));
@@ -362,7 +366,10 @@ impl Action {
                 let after_len = episodes.len();
                 let difference = initial_len - after_len;
                 if difference > 0 {
-                    self.log_info(&pb_main, format!("Skipped {difference} already processed episodes..."));
+                    self.log_info(
+                        &pb_main,
+                        format!("Skipped {difference} already processed episodes..."),
+                    );
                 } else {
                     self.log_info(&pb_main, "No previously processed episodes");
                 }
@@ -374,11 +381,11 @@ impl Action {
                 self.finish(&sub_pb, "No episodes found");
                 continue;
             }
-            
+
             if !self.is_tty {
                 println!("  Processing {} episodes...", num_episodes);
             }
-            
+
             for (ep_idx, episode) in episodes.into_iter().enumerate() {
                 if !self.is_tty {
                     println!("    Episode {}/{}", ep_idx + 1, num_episodes);
@@ -387,10 +394,13 @@ impl Action {
                 sub_pb.inc(1);
             }
             pb_main.inc(1);
-            
-            self.log_info(&pb_main, format!("Finished processing tv show {}", series.title));
+
+            self.log_info(
+                &pb_main,
+                format!("Finished processing tv show {}", series.title),
+            );
         }
-        
+
         self.finish(
             &pb_main,
             format!(
