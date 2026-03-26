@@ -46,9 +46,9 @@ RUN case "$TARGETARCH" in \
 RUN case "$TARGETARCH" in \
     "arm64") \
         if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
-            mkdir -p ~/.cargo && \
-            echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml && \
-            echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml; \
+            mkdir -p $CARGO_HOME && \
+            echo '[target.aarch64-unknown-linux-gnu]' >> $CARGO_HOME/config.toml && \
+            echo 'linker = "aarch64-linux-gnu-gcc"' >> $CARGO_HOME/config.toml; \
         fi \
         ;; \
     esac

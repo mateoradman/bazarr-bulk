@@ -140,6 +140,8 @@ pub enum ActionCommands {
     FixUppercase,
     /// Reverse RTL directioned subtitles
     ReverseRTL,
+    /// Remove emoji from subtitles
+    RemoveEmoji,
 }
 
 #[allow(clippy::to_string_trait_impl)]
@@ -153,6 +155,7 @@ impl ToString for ActionCommands {
             ActionCommands::RemoveStyleTags => "remove_tags".to_string(),
             ActionCommands::FixUppercase => "fix_uppercase".to_string(),
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
+            ActionCommands::RemoveEmoji => "emoji".to_string(),
         }
     }
 }

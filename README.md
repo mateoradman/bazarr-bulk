@@ -22,7 +22,9 @@ List of supported actions:
 - common-fixes
 - remove-hearing-impaired
 - remove-style-tags
+- fix-uppercase
 - reverse-rtl
+- remove-emoji
 
 ## Installation
 
@@ -193,6 +195,7 @@ Commands:
   remove-style-tags        Remove style tags from subtitles
   fix-uppercase            Fix uppercase subtitles
   reverse-rtl              Reverse RTL directioned subtitles
+  remove-emoji             Remove emoji from subtitles
   help                     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -220,6 +223,7 @@ Commands:
   remove-style-tags        Remove style tags from subtitles
   fix-uppercase            Fix uppercase subtitles
   reverse-rtl              Reverse RTL directioned subtitles
+  remove-emoji             Remove emoji from subtitles
   help                     Print this message or the help of the given subcommand(s)
 
 Options:

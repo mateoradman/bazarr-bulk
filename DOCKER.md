@@ -129,7 +129,9 @@ Available actions:
 - `common-fixes`
 - `remove-hearing-impaired`
 - `remove-style-tags`
+- `fix-uppercase`
 - `reverse-rtl`
+- `remove-emoji`
 
 ### Persistent Database
 
