@@ -53,36 +53,64 @@ pub async fn init_db(custom_path: Option<PathBuf>) -> Result<Arc<Mutex<Connectio
     Ok(Arc::new(Mutex::new(conn)))
 }
 
-fn create_tables(conn: &mut Connection) -> Result<()> {
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS processed_movie_subtitles (
+fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info(\"{}\")", table))?;
+    let columns: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>>>()?;
+    Ok(columns.iter().any(|c| c == column))
+}
+
+fn migrate_movie_table(conn: &mut Connection) -> Result<()> {
+    conn.execute_batch(
+        "BEGIN;
+        CREATE TABLE processed_movie_subtitles_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             radarr_id INTEGER NOT NULL,
             title TEXT NOT NULL,
             language_code TEXT NOT NULL,
             language_name TEXT NOT NULL,
             path TEXT,
+            action TEXT NOT NULL DEFAULT '',
             processed_at INTEGER NOT NULL,
-            UNIQUE(radarr_id, language_code)
-        )",
-        [],
-    )?;
+            UNIQUE(radarr_id, language_code, action)
+        );
+        INSERT INTO processed_movie_subtitles_new
+            (id, radarr_id, title, language_code, language_name, path, action, processed_at)
+        SELECT id, radarr_id, title, language_code, language_name, path, '', processed_at
+        FROM processed_movie_subtitles;
+        DROP TABLE processed_movie_subtitles;
+        ALTER TABLE processed_movie_subtitles_new RENAME TO processed_movie_subtitles;
+        COMMIT;",
+    )
+}
 
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS processed_episode_subtitles (
+fn migrate_episode_table(conn: &mut Connection) -> Result<()> {
+    conn.execute_batch(
+        "BEGIN;
+        CREATE TABLE processed_episode_subtitles_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sonarr_episode_id INTEGER NOT NULL,
             title TEXT NOT NULL,
             language_code TEXT NOT NULL,
             language_name TEXT NOT NULL,
             path TEXT,
+            action TEXT NOT NULL DEFAULT '',
             processed_at INTEGER NOT NULL,
-            UNIQUE(sonarr_episode_id, language_code)
-        )",
-        [],
-    )?;
+            UNIQUE(sonarr_episode_id, language_code, action)
+        );
+        INSERT INTO processed_episode_subtitles_new
+            (id, sonarr_episode_id, title, language_code, language_name, path, action, processed_at)
+        SELECT id, sonarr_episode_id, title, language_code, language_name, path, '', processed_at
+        FROM processed_episode_subtitles;
+        DROP TABLE processed_episode_subtitles;
+        ALTER TABLE processed_episode_subtitles_new RENAME TO processed_episode_subtitles;
+        COMMIT;",
+    )
+}
 
-    let table_exists: bool = conn
+fn create_tables(conn: &mut Connection) -> Result<()> {
+    let movie_table_exists = conn
         .query_row(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='processed_movie_subtitles'",
             [],
@@ -90,14 +118,7 @@ fn create_tables(conn: &mut Connection) -> Result<()> {
         )
         .unwrap_or(false);
 
-    if table_exists {
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_movie_radarr ON processed_movie_subtitles(radarr_id)",
-            [],
-        )?;
-    }
-
-    let table_exists: bool = conn
+    let episode_table_exists = conn
         .query_row(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='processed_episode_subtitles'",
             [],
@@ -105,12 +126,71 @@ fn create_tables(conn: &mut Connection) -> Result<()> {
         )
         .unwrap_or(false);
 
-    if table_exists {
+    let mut migrated = false;
+
+    if movie_table_exists {
+        if !column_exists(conn, "processed_movie_subtitles", "action")? {
+            migrate_movie_table(conn)?;
+            migrated = true;
+        }
+    } else {
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_episode_sonarr ON processed_episode_subtitles(sonarr_episode_id)",
+            "CREATE TABLE IF NOT EXISTS processed_movie_subtitles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                radarr_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                language_code TEXT NOT NULL,
+                language_name TEXT NOT NULL,
+                path TEXT,
+                action TEXT NOT NULL DEFAULT '',
+                processed_at INTEGER NOT NULL,
+                UNIQUE(radarr_id, language_code, action)
+            )",
             [],
         )?;
     }
+
+    if episode_table_exists {
+        if !column_exists(conn, "processed_episode_subtitles", "action")? {
+            migrate_episode_table(conn)?;
+            migrated = true;
+        }
+    } else {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS processed_episode_subtitles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sonarr_episode_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                language_code TEXT NOT NULL,
+                language_name TEXT NOT NULL,
+                path TEXT,
+                action TEXT NOT NULL DEFAULT '',
+                processed_at INTEGER NOT NULL,
+                UNIQUE(sonarr_episode_id, language_code, action)
+            )",
+            [],
+        )?;
+    }
+
+    if migrated {
+        println!(
+            "\nWARNING: Database schema has been migrated to support per-action tracking.\n\
+             Existing records have been preserved with an empty action value and will NOT\n\
+             prevent re-processing under the new scheme. Each action (ocr-fixes, common-fixes,\n\
+             remove-emoji, etc.) is now tracked independently — you may need to re-run\n\
+             previous actions once to rebuild the per-action processed history.\n"
+        );
+    }
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_movie_radarr ON processed_movie_subtitles(radarr_id, action)",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_episode_sonarr ON processed_episode_subtitles(sonarr_episode_id, action)",
+        [],
+    )?;
 
     Ok(())
 }
@@ -119,14 +199,15 @@ pub async fn is_movie_subtitle_processed(
     conn: Arc<Mutex<Connection>>,
     radarr_id: u32,
     language_code: String,
+    action: String,
 ) -> Result<bool> {
     tokio::task::spawn_blocking(move || {
         let conn = conn.blocking_lock();
         let mut stmt = conn.prepare(
-            "SELECT 1 FROM processed_movie_subtitles 
-             WHERE radarr_id = ?1 AND language_code = ?2",
+            "SELECT 1 FROM processed_movie_subtitles
+             WHERE radarr_id = ?1 AND language_code = ?2 AND action = ?3",
         )?;
-        stmt.exists(params![radarr_id, language_code])
+        stmt.exists(params![radarr_id, language_code, action])
     })
     .await
     .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?
@@ -136,14 +217,15 @@ pub async fn is_episode_subtitle_processed(
     conn: Arc<Mutex<Connection>>,
     sonarr_episode_id: u32,
     language_code: String,
+    action: String,
 ) -> Result<bool> {
     tokio::task::spawn_blocking(move || {
         let conn = conn.blocking_lock();
         let mut stmt = conn.prepare(
-            "SELECT 1 FROM processed_episode_subtitles 
-             WHERE sonarr_episode_id = ?1 AND language_code = ?2",
+            "SELECT 1 FROM processed_episode_subtitles
+             WHERE sonarr_episode_id = ?1 AND language_code = ?2 AND action = ?3",
         )?;
-        stmt.exists(params![sonarr_episode_id, language_code])
+        stmt.exists(params![sonarr_episode_id, language_code, action])
     })
     .await
     .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?
@@ -154,6 +236,7 @@ pub async fn mark_episode_subtitle_processed(
     sonarr_episode_id: u32,
     title: String,
     subtitle: Subtitle,
+    action: String,
 ) -> Result<bool> {
     let Some(language_code) = subtitle.audio_language_item.code2 else {
         return Ok(false);
@@ -167,16 +250,17 @@ pub async fn mark_episode_subtitle_processed(
             .as_secs() as i64;
 
         let rows = conn.execute(
-            "INSERT INTO processed_episode_subtitles 
-             (sonarr_episode_id, title, language_code, language_name, path, processed_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT(sonarr_episode_id, language_code) DO NOTHING",
+            "INSERT INTO processed_episode_subtitles
+             (sonarr_episode_id, title, language_code, language_name, path, action, processed_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(sonarr_episode_id, language_code, action) DO NOTHING",
             params![
                 sonarr_episode_id,
                 title,
                 language_code,
                 subtitle.audio_language_item.name,
                 subtitle.path,
+                action,
                 now
             ],
         )?;
@@ -192,6 +276,7 @@ pub async fn mark_movie_subtitle_processed(
     radarr_id: u32,
     title: String,
     subtitle: Subtitle,
+    action: String,
 ) -> Result<bool> {
     let Some(language_code) = subtitle.audio_language_item.code2 else {
         return Ok(false);
@@ -205,16 +290,17 @@ pub async fn mark_movie_subtitle_processed(
             .as_secs() as i64;
 
         let rows = conn.execute(
-            "INSERT INTO processed_movie_subtitles 
-             (radarr_id, title, language_code, language_name, path, processed_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-             ON CONFLICT(radarr_id, language_code) DO NOTHING",
+            "INSERT INTO processed_movie_subtitles
+             (radarr_id, title, language_code, language_name, path, action, processed_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(radarr_id, language_code, action) DO NOTHING",
             params![
                 radarr_id,
                 title,
                 language_code,
                 subtitle.audio_language_item.name,
                 subtitle.path,
+                action,
                 now
             ],
         )?;
@@ -228,6 +314,7 @@ pub async fn mark_movie_subtitle_processed(
 pub async fn filter_unprocessed_movies(
     conn: Arc<Mutex<Connection>>,
     movies: Vec<Movie>,
+    action: String,
 ) -> Result<Vec<Movie>> {
     if movies.is_empty() {
         return Ok(vec![]);
@@ -235,21 +322,23 @@ pub async fn filter_unprocessed_movies(
 
     let radarr_ids: Vec<u32> = movies.iter().map(|m| m.radarr_id).collect();
     let conn_clone = conn.clone();
+    let action_clone = action.clone();
 
     let processed_ids: HashSet<u32> = tokio::task::spawn_blocking(move || {
         let conn = conn_clone.blocking_lock();
         let placeholders = radarr_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let query = format!(
-            "SELECT DISTINCT radarr_id FROM processed_movie_subtitles 
-             WHERE radarr_id IN ({})",
+            "SELECT DISTINCT radarr_id FROM processed_movie_subtitles
+             WHERE radarr_id IN ({}) AND action = ?",
             placeholders
         );
 
         let mut stmt = conn.prepare(&query)?;
-        let params: Vec<&dyn rusqlite::ToSql> = radarr_ids
+        let mut params: Vec<&dyn rusqlite::ToSql> = radarr_ids
             .iter()
             .map(|id| id as &dyn rusqlite::ToSql)
             .collect();
+        params.push(&action_clone);
 
         let processed: HashSet<u32> =
             stmt.query_map(params.as_slice(), |row| row.get(0))?
@@ -270,7 +359,14 @@ pub async fn filter_unprocessed_movies(
         let mut has_unprocessed = false;
         for sub in &movie.subtitles {
             if let Some(ref code) = sub.audio_language_item.code2 {
-                if is_movie_subtitle_processed(conn.clone(), movie.radarr_id, code.clone()).await? {
+                if is_movie_subtitle_processed(
+                    conn.clone(),
+                    movie.radarr_id,
+                    code.clone(),
+                    action.clone(),
+                )
+                .await?
+                {
                     continue;
                 }
                 has_unprocessed = true;
@@ -289,6 +385,7 @@ pub async fn filter_unprocessed_movies(
 pub async fn filter_unprocessed_episodes(
     conn: Arc<Mutex<Connection>>,
     episodes: Vec<Episode>,
+    action: String,
 ) -> Result<Vec<Episode>> {
     if episodes.is_empty() {
         println!("No episodes to filter");
@@ -298,6 +395,7 @@ pub async fn filter_unprocessed_episodes(
     let episode_ids: Vec<u32> = episodes.iter().map(|e| e.sonarr_episode_id).collect();
     println!("Checking {} episodes in database", episode_ids.len());
     let conn_clone = conn.clone();
+    let action_clone = action.clone();
 
     let processed_ids: HashSet<u32> = tokio::task::spawn_blocking(move || {
         let conn = conn_clone.blocking_lock();
@@ -307,16 +405,17 @@ pub async fn filter_unprocessed_episodes(
             .collect::<Vec<_>>()
             .join(",");
         let query = format!(
-            "SELECT DISTINCT sonarr_episode_id FROM processed_episode_subtitles 
-             WHERE sonarr_episode_id IN ({})",
+            "SELECT DISTINCT sonarr_episode_id FROM processed_episode_subtitles
+             WHERE sonarr_episode_id IN ({}) AND action = ?",
             placeholders
         );
 
         let mut stmt = conn.prepare(&query)?;
-        let params: Vec<&dyn rusqlite::ToSql> = episode_ids
+        let mut params: Vec<&dyn rusqlite::ToSql> = episode_ids
             .iter()
             .map(|id| id as &dyn rusqlite::ToSql)
             .collect();
+        params.push(&action_clone);
 
         let processed: HashSet<u32> =
             stmt.query_map(params.as_slice(), |row| row.get(0))?
@@ -341,6 +440,7 @@ pub async fn filter_unprocessed_episodes(
                     conn.clone(),
                     episode.sonarr_episode_id,
                     code.clone(),
+                    action.clone(),
                 )
                 .await?
                 {

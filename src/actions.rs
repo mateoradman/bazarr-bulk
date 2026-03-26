@@ -186,6 +186,7 @@ impl Action {
                             episode.sonarr_episode_id,
                             episode.title.clone(),
                             subtitle,
+                            self.action.to_string(),
                         )
                         .await;
                     }
@@ -243,6 +244,7 @@ impl Action {
                             movie.radarr_id,
                             movie.title.clone(),
                             subtitle,
+                            self.action.to_string(),
                         )
                         .await;
                     }
@@ -284,10 +286,10 @@ impl Action {
         let mut movies = response.data;
         if self.skip_processed {
             let initial_len = movies.len();
-            movies = filter_unprocessed_movies(self.db_conn.clone(), movies).await?;
+            movies = filter_unprocessed_movies(self.db_conn.clone(), movies, self.action.to_string()).await?;
             let after_len = movies.len();
             let difference = initial_len - after_len;
-            println!("Skipped {difference} already processed movies...");
+            println!("Skipped {difference} already {} processed movies...", self.action.to_cli_name());
         }
         let num_movies: u64 = movies.len() as u64;
         if num_movies == 0 {
@@ -381,13 +383,13 @@ impl Action {
                     episodes.len()
                 );
                 let initial_len = episodes.len();
-                episodes = filter_unprocessed_episodes(self.db_conn.clone(), episodes).await?;
+                episodes = filter_unprocessed_episodes(self.db_conn.clone(), episodes, self.action.to_string()).await?;
                 let after_len = episodes.len();
                 let difference = initial_len - after_len;
                 if difference > 0 {
                     self.log_info(
                         &pb_main,
-                        format!("Skipped {difference} already processed episodes..."),
+                        format!("Skipped {difference} already {} processed episodes...", self.action.to_cli_name()),
                     );
                 } else {
                     self.log_info(&pb_main, "No previously processed episodes");

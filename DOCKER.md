@@ -47,11 +47,11 @@ docker run --rm \
   -v bazarr-bulk-data:/data \
   bazarr-bulk --config /config/config.json tv-shows ocr-fixes
 
-# Example: With skip-processed flag
+# Example: With skip-processed flag (tracked per action — ocr-fixes and common-fixes are independent)
 docker run --rm \
   -v "$(pwd)/config.json:/config/config.json:ro" \
   -v bazarr-bulk-data:/data \
-  bazarr-bulk --config /config/config.json movies sync --skip-processed
+  bazarr-bulk --config /config/config.json movies ocr-fixes --skip-processed
 ```
 
 ### 3. Using Docker Compose
@@ -129,7 +129,9 @@ Available actions:
 - `common-fixes`
 - `remove-hearing-impaired`
 - `remove-style-tags`
+- `fix-uppercase`
 - `reverse-rtl`
+- `remove-emoji`
 
 ### Persistent Database
 

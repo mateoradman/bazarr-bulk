@@ -140,6 +140,23 @@ pub enum ActionCommands {
     FixUppercase,
     /// Reverse RTL directioned subtitles
     ReverseRTL,
+    /// Remove emoji from subtitles
+    RemoveEmoji,
+}
+
+impl ActionCommands {
+    pub fn to_cli_name(&self) -> &'static str {
+        match self {
+            ActionCommands::Sync(_) => "sync",
+            ActionCommands::OCRFixes => "ocr-fixes",
+            ActionCommands::CommonFixes => "common-fixes",
+            ActionCommands::RemoveHearingImpaired => "remove-hearing-impaired",
+            ActionCommands::RemoveStyleTags => "remove-style-tags",
+            ActionCommands::FixUppercase => "fix-uppercase",
+            ActionCommands::ReverseRTL => "reverse-rtl",
+            ActionCommands::RemoveEmoji => "remove-emoji",
+        }
+    }
 }
 
 #[allow(clippy::to_string_trait_impl)]
@@ -153,6 +170,7 @@ impl ToString for ActionCommands {
             ActionCommands::RemoveStyleTags => "remove_tags".to_string(),
             ActionCommands::FixUppercase => "fix_uppercase".to_string(),
             ActionCommands::ReverseRTL => "reverse_rtl".to_string(),
+            ActionCommands::RemoveEmoji => "emoji".to_string(),
         }
     }
 }
